@@ -1,0 +1,18 @@
+# Warren scheduled triggers for freelance-revenue-os.
+#
+# DISABLED BY DEFAULT. Every trigger stays commented until the project owner
+# intentionally enables it. Per CLAUDE.md, enabling cron requires explicit human
+# approval. Timezone matches the PRD: America/Mazatlan.
+#
+# Example (leave commented until you mean it):
+#
+# - id: nightly-maintenance-review
+#   kind: cron
+#   cron: "0 3 * * *"
+#   timezone: America/Mazatlan
+#   role: claude-code
+#   prompt: >
+#     Review this repo for stale docs, failing tests, and simple maintenance
+#     improvements. Open a branch with minimal, safe fixes only. Do not touch
+#     secrets, .env files, or any platform-integration code. Respect the safety
+#     rules in docs/PRD.md (no automated platform actions).

@@ -1,0 +1,29 @@
+# Warren project defaults for freelance-revenue-os.
+# Tells Warren how to run sandboxed agents against this repo and how returned
+# work should be branched. Conservative, review-first defaults.
+#
+# Repo:  https://github.com/KevinGastelum/freelance-revenue-os
+# Ethos: docs/PRD.md is "AI prepares. Human commits." Warren output is ALWAYS a
+#        branch/PR for human review here, never auto-merged.
+
+defaultRole: claude-code
+defaultBranch: main
+runBranchPrefix: warren
+
+# Optional provider/model defaults.
+# Left commented so the owner sets hard defaults intentionally.
+# defaultProvider: anthropic
+# defaultModel: claude-sonnet-4-6
+
+agent:
+  # Max time a run may sit paused (awaiting input) before timing out. 30 min.
+  pauseTimeoutMs: 1800000
+
+interactiveAgents:
+  brainstormRuntime: claude-code
+  plannerRuntime: claude-code
+
+plotSync:
+  # Never auto-merge. A human reviews every Warren branch before it lands.
+  mergeStrategy: manual
+  targetBranch: main

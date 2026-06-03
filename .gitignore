@@ -34,5 +34,14 @@ yarn-error.log*
 # OS & editor
 .DS_Store
 Thumbs.db
+*.stackdump
 .idea/
 .vscode/
+
+# Warren — local runtime artifacts only.
+# Keep .warren/{config,triggers,preview}.yaml and .warren/pr-template.md TRACKED.
+# (*.log and *.local are already ignored globally above.)
+.warren/tmp/
+
+# Claude Code — personal/local overrides (shared .claude/settings.json stays tracked)
+.claude/settings.local.json

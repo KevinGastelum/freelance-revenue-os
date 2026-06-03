@@ -1,0 +1,17 @@
+# Warren preview config for freelance-revenue-os.
+#
+# This project is a local-first PYTHON CLI (`freelance-os`, see docs/PRD.md).
+# There is no web dev server yet, so there is nothing for Warren to preview.
+# Leave this file commented until the optional FastAPI layer (PRD section 7)
+# actually exists.
+#
+# When a server exists, uncomment and adjust. Example for a future FastAPI app:
+#
+# type: server
+# command: uvicorn freelance_os.api:app --host 0.0.0.0 --port 8000
+# port: 8000
+# readiness_path: /health
+# readiness_timeout: 2m
+# connect_timeout: 30s
+# idle_ttl: 30m
+# max_lifetime: 8h
