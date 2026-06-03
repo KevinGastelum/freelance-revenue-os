@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "freelance-os"
+version = "0.1.0"
+description = "Local-first, human-in-the-loop freelance operating system"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12",
+    "sqlmodel>=0.0.21",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+freelance-os = "freelance_os.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/freelance_os"]

@@ -1,0 +1,39 @@
+from enum import Enum
+
+
+class LeadStatus(str, Enum):
+    NEW = "NEW"
+    SCORED = "SCORED"
+    DRAFTED = "DRAFTED"
+    APPROVED_TO_APPLY = "APPROVED_TO_APPLY"
+    APPLIED_MANUALLY = "APPLIED_MANUALLY"
+    INTERVIEW = "INTERVIEW"
+    WON = "WON"
+    LOST = "LOST"
+    REJECTED = "REJECTED"
+    ARCHIVED = "ARCHIVED"
+
+
+class Decision(str, Enum):
+    DRAFT_NOW = "DRAFT_NOW"
+    WATCH = "WATCH"
+    MAYBE = "MAYBE"
+    REJECT = "REJECT"
+
+
+class ClientProjectStatus(str, Enum):
+    INTAKE = "INTAKE"
+    ACTIVE = "ACTIVE"
+    WAITING_ON_CLIENT = "WAITING_ON_CLIENT"
+    READY_FOR_DELIVERY = "READY_FOR_DELIVERY"
+    DELIVERED = "DELIVERED"
+    REVISION = "REVISION"
+    COMPLETE = "COMPLETE"
+    CANCELLED = "CANCELLED"
+
+
+class OutcomeResult(str, Enum):
+    WON = "WON"
+    LOST = "LOST"
+    WITHDRAWN = "WITHDRAWN"
+    NO_RESPONSE = "NO_RESPONSE"
