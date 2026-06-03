@@ -1,0 +1,33 @@
+[weights]
+technical_fit = 0.20
+budget_fit = 0.15
+client_quality = 0.15
+clarity = 0.10
+urgency = 0.10
+portfolio_match = 0.10
+repeat_potential = 0.10
+communication = 0.10
+
+[thresholds]
+draft_now = 80
+watch = 65
+maybe = 50
+
+[penalties]
+unpaid_test = 25
+bypass_payment = 25
+vague_fixed_price = 20
+unrealistic_deadline = 20
+suspicious_behavior = 15
+scope_creep_risk = 15
+easy_language = 10
+unclear_deliverables = 10
+free_consultation = 10
+
+[pricing]
+target_hourly_rate = 75
+minimum_project_value = 300
+risk_multiplier_low = 1.0
+risk_multiplier_medium = 1.25
+risk_multiplier_high = 1.5
+rush_multiplier = 1.25
