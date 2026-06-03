@@ -170,6 +170,12 @@ def _qa_md(project_name: str, workspace_path: str) -> str:
 
 Test the implementation and document results in qa_report.md.
 
+## Acceptance Criteria
+
+- All acceptance criteria in scope.md pass.
+- Edge cases and error paths tested.
+- QA report complete in `02_delivery/qa_report.md`.
+
 ## Scope
 
 - Test all acceptance criteria in scope.md.
@@ -201,6 +207,12 @@ def _docs_md(project_name: str, workspace_path: str) -> str:
 ## Role
 
 Maintain documentation and prepare the delivery package.
+
+## Acceptance Criteria
+
+- `02_delivery/changelog.md` complete and accurate.
+- `02_delivery/handoff.md` ready for client review.
+- `02_delivery/delivery_message_draft.md` clearly marked DRAFT ONLY.
 
 ## Scope
 
