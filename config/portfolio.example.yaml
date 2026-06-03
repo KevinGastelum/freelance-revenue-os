@@ -1,0 +1,59 @@
+items:
+  - name: "Next.js + Supabase Platform"
+    type: "web_app"
+    tags: ["nextjs", "supabase", "prisma", "postgres", "auth", "dashboard", "react"]
+    description: "Built full-stack web applications using Next.js, Prisma, and Supabase."
+    proof_points:
+      - "Implemented database-backed ticketing/payment-style workflows."
+      - "Worked with Prisma schema design and Supabase Postgres."
+      - "Deployed Next.js apps to Vercel."
+    allowed_claims:
+      - "I have built Next.js/Supabase applications."
+      - "I can work with Prisma and Postgres-backed workflows."
+    forbidden_claims:
+      - "I have scaled this to millions of users."
+      - "I am an official Supabase partner."
+
+  - name: "Power BI / Data Analytics Background"
+    type: "data_analytics"
+    tags: ["powerbi", "dax", "sql", "dashboards", "kpi", "analytics", "reporting"]
+    description: "Data analytics and dashboarding experience across business reporting workflows."
+    proof_points:
+      - "Built KPI reporting workflows."
+      - "Worked with DAX and Power BI measures."
+      - "Handled reporting for business stakeholders."
+    allowed_claims:
+      - "I have built Power BI dashboards and KPI reports."
+      - "I can work with DAX and SQL-backed analytics."
+    forbidden_claims:
+      - "I am a certified Power BI expert."
+      - "I have led enterprise BI transformations."
+
+  - name: "Python Backend / FastAPI"
+    type: "backend"
+    tags: ["python", "fastapi", "api", "backend", "sqlalchemy", "pydantic"]
+    description: "Python backend development with FastAPI and SQLAlchemy."
+    proof_points:
+      - "Built REST APIs with FastAPI and SQLModel."
+      - "Designed data models with SQLAlchemy and Pydantic."
+      - "Implemented authentication and authorization flows."
+    allowed_claims:
+      - "I build Python backends using FastAPI and SQLAlchemy."
+      - "I have implemented REST APIs with Python."
+    forbidden_claims:
+      - "I have handled millions of requests per second."
+
+  - name: "AI / LLM Workflow Automation"
+    type: "ai_automation"
+    tags: ["claude", "openai", "llm", "ai", "automation", "workflow", "agents"]
+    description: "Building AI-powered workflows and automation with Claude and OpenAI."
+    proof_points:
+      - "Built multi-step LLM workflows with Claude Code."
+      - "Integrated AI APIs into data processing pipelines."
+      - "Designed prompt engineering workflows."
+    allowed_claims:
+      - "I build automation workflows using Claude and OpenAI APIs."
+      - "I can integrate LLMs into existing applications."
+    forbidden_claims:
+      - "I have trained custom language models."
+      - "I developed GPT or Claude from scratch."
