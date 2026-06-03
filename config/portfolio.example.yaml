@@ -1,0 +1,42 @@
+items:
+  - name: "Next.js + Supabase Platform"
+    type: "web_app"
+    tags:
+      - "nextjs"
+      - "supabase"
+      - "prisma"
+      - "postgres"
+      - "auth"
+      - "dashboard"
+    description: "Built full-stack web applications using Next.js, Prisma, and Supabase."
+    proof_points:
+      - "Implemented database-backed ticketing/payment-style workflows."
+      - "Worked with Prisma schema design and Supabase Postgres."
+      - "Deployed Next.js apps to Vercel."
+    allowed_claims:
+      - "I have built Next.js/Supabase applications."
+      - "I can work with Prisma and Postgres-backed workflows."
+    forbidden_claims:
+      - "I have scaled this to millions of users."
+      - "I am an official Supabase partner."
+
+  - name: "Power BI / Data Analytics Background"
+    type: "data_analytics"
+    tags:
+      - "powerbi"
+      - "dax"
+      - "sql"
+      - "dashboards"
+      - "kpi"
+      - "analytics"
+    description: "Data analytics and dashboarding experience across business reporting workflows."
+    proof_points:
+      - "Built KPI reporting workflows."
+      - "Worked with DAX and Power BI measures."
+      - "Handled reporting for business stakeholders."
+    allowed_claims:
+      - "I have built Power BI dashboards and KPI reports."
+      - "I can work with DAX and SQL-based reporting."
+    forbidden_claims:
+      - "I am a certified Microsoft Power BI expert."
+      - "I have built dashboards used by millions of users."

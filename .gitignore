@@ -45,3 +45,9 @@ Thumbs.db
 
 # Claude Code — personal/local overrides (shared .claude/settings.json stays tracked)
 .claude/settings.local.json
+
+# Python project — freelance-os
+data/*.sqlite
+*.egg-info/
+.pytest_cache/
+config/settings.toml

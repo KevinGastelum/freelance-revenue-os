@@ -1,0 +1,12 @@
+# Banned phrases for proposal validation (PRD section 11.2).
+# These phrases are flagged as generic, unprofessional, or policy-violating.
+phrases:
+  - "I hope this message finds you well"
+  - "I am the perfect candidate"
+  - "I am the ideal candidate"
+  - "I have extensive experience"
+  - "I can do this easily"
+  - "Dear hiring manager"
+  - "Kindly"
+  - "Let's connect outside Upwork"
+  - "Let's connect outside Fiverr"

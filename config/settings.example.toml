@@ -1,0 +1,17 @@
+[user]
+name = "Kevin Alexis"
+default_timezone = "America/Mazatlan"
+target_hourly_rate = 75
+minimum_project_value = 300
+
+[paths]
+client_work_dir = "./client-work"
+portfolio_file = "./config/portfolio.yaml"
+database_path = "./data/freelance_os.sqlite"
+
+[safety]
+allow_browser_automation = false
+allow_auto_submit = false
+allow_auto_message = false
+allow_scraping = false
+require_human_approval = true
