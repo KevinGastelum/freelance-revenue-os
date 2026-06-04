@@ -8,6 +8,16 @@ from typing import Optional
 from sqlmodel import Field, SQLModel
 
 
+class JobCategory(str, Enum):
+    WEB_APP = "WEB_APP"
+    DATA_DASHBOARD = "DATA_DASHBOARD"
+    AI_AUTOMATION = "AI_AUTOMATION"
+    SCRAPING_DATA = "SCRAPING_DATA"
+    WORDPRESS = "WORDPRESS"
+    BUG_FIX = "BUG_FIX"
+    OTHER = "OTHER"
+
+
 class LeadStatus(str, Enum):
     NEW = "NEW"
     SCORED = "SCORED"
@@ -70,6 +80,7 @@ class Lead(SQLModel, table=True):
     reason_codes: Optional[str] = None  # JSON-encoded list[str]
     raw_payload: Optional[str] = None   # JSON-encoded dict
     notes: Optional[str] = None
+    category: str = Field(default=JobCategory.OTHER.value)
 
 
 class ProposalDraft(SQLModel, table=True):

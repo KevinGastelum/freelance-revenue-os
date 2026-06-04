@@ -1,0 +1,205 @@
+# Freelance platform source directory
+# freelance-os init copies this to config/sources.yaml if absent.
+# Edit sources.yaml to customize for your workflow.
+#
+# categories: subset of WEB_APP, DATA_DASHBOARD, AI_AUTOMATION,
+#             SCRAPING_DATA, WORDPRESS, BUG_FIX, OTHER
+
+sources:
+  - name: Upwork
+    url: https://www.upwork.com
+    categories: [WEB_APP, DATA_DASHBOARD, AI_AUTOMATION, SCRAPING_DATA, WORDPRESS, BUG_FIX, OTHER]
+    fee_notes: "10% flat fee on all earnings"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Largest freelance marketplace. High volume, competitive bidding."
+
+  - name: Fiverr
+    url: https://www.fiverr.com
+    categories: [WEB_APP, WORDPRESS, BUG_FIX, OTHER]
+    fee_notes: "20% commission on all orders"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Gig-based marketplace. Good for fixed-scope packages."
+
+  - name: Freelancer.com
+    url: https://www.freelancer.com
+    categories: [WEB_APP, DATA_DASHBOARD, AI_AUTOMATION, SCRAPING_DATA, WORDPRESS, BUG_FIX, OTHER]
+    fee_notes: "10% or $5 minimum per project; membership tiers"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Large platform with contests and hourly/fixed projects."
+
+  - name: PeoplePerHour
+    url: https://www.peopleperhour.com
+    categories: [WEB_APP, DATA_DASHBOARD, AI_AUTOMATION, WORDPRESS, BUG_FIX, OTHER]
+    fee_notes: "20% up to GBP 500, 7.5% above"
+    vetted: false
+    region: eu
+    newcomer_friendly: true
+    notes: "UK-focused but global reach. Good for European clients."
+
+  - name: Guru
+    url: https://www.guru.com
+    categories: [WEB_APP, DATA_DASHBOARD, AI_AUTOMATION, SCRAPING_DATA, OTHER]
+    fee_notes: "5-9% depending on membership tier"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Lower fees than Upwork. Smaller pool but less competition."
+
+  - name: Truelancer
+    url: https://www.truelancer.com
+    categories: [WEB_APP, WORDPRESS, BUG_FIX, OTHER]
+    fee_notes: "8-10% commission"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Budget-friendly platform, popular in South Asia."
+
+  - name: Workana
+    url: https://www.workana.com
+    categories: [WEB_APP, DATA_DASHBOARD, AI_AUTOMATION, WORDPRESS, OTHER]
+    fee_notes: "5-20% sliding scale"
+    vetted: false
+    region: latam
+    newcomer_friendly: true
+    notes: "Leading platform for Latin America. Spanish/Portuguese clients."
+
+  - name: Freelancehunt
+    url: https://freelancehunt.com
+    categories: [WEB_APP, WORDPRESS, BUG_FIX, OTHER]
+    fee_notes: "Subscription-based; low per-project fees"
+    vetted: false
+    region: eu
+    newcomer_friendly: true
+    notes: "Popular in Ukraine and Eastern Europe."
+
+  - name: Contra
+    url: https://contra.com
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, OTHER]
+    fee_notes: "0% commission (freelancer keeps 100%)"
+    vetted: true
+    region: global
+    newcomer_friendly: false
+    notes: "No-fee platform. Application required. Good for senior devs."
+
+  - name: Hubstaff Talent
+    url: https://talent.hubstaff.com
+    categories: [WEB_APP, DATA_DASHBOARD, AI_AUTOMATION, OTHER]
+    fee_notes: "Free to use; no commission"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Free directory. Clients find you directly. No built-in payments."
+
+  - name: Toptal
+    url: https://www.toptal.com
+    categories: [WEB_APP, DATA_DASHBOARD, AI_AUTOMATION, OTHER]
+    fee_notes: "Toptal sets rates; no freelancer-side fee"
+    vetted: true
+    region: global
+    newcomer_friendly: false
+    notes: "Top 3% screening. High rates. Very competitive admission."
+
+  - name: Arc.dev
+    url: https://arc.dev
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, OTHER]
+    fee_notes: "No fee for freelancers; Arc charges clients"
+    vetted: true
+    region: global
+    newcomer_friendly: false
+    notes: "Vetted remote developer network. US-time-zone preferred."
+
+  - name: Lemon.io
+    url: https://lemon.io
+    categories: [WEB_APP, AI_AUTOMATION, OTHER]
+    fee_notes: "No fee for freelancers; Lemon.io charges clients"
+    vetted: true
+    region: global
+    newcomer_friendly: false
+    notes: "European-focused vetted dev marketplace."
+
+  - name: Gun.io
+    url: https://www.gun.io
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, OTHER]
+    fee_notes: "No fee for freelancers"
+    vetted: true
+    region: us
+    newcomer_friendly: false
+    notes: "US-based vetted talent network. Strong for senior engineers."
+
+  - name: Braintrust
+    url: https://www.usebraintrust.com
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, OTHER]
+    fee_notes: "0% freelancer fee; 10% charged to client"
+    vetted: true
+    region: global
+    newcomer_friendly: false
+    notes: "Token-based network. Enterprise clients. Skills test required."
+
+  - name: Codementor
+    url: https://www.codementor.io
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, BUG_FIX, OTHER]
+    fee_notes: "20% commission"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Good for mentoring sessions and short bug-fix gigs."
+
+  - name: Codeable
+    url: https://codeable.io
+    categories: [WORDPRESS]
+    fee_notes: "17.5% commission"
+    vetted: true
+    region: global
+    newcomer_friendly: false
+    notes: "WordPress-only. Expert-vetted. Premium client base."
+
+  - name: Webflow Experts
+    url: https://experts.webflow.com
+    categories: [WEB_APP]
+    fee_notes: "No platform fee; direct client billing"
+    vetted: true
+    region: global
+    newcomer_friendly: false
+    notes: "Webflow-certified expert directory. Webflow skills required."
+
+  - name: 99designs
+    url: https://99designs.com
+    categories: [OTHER]
+    fee_notes: "5-15% commission depending on tier"
+    vetted: false
+    region: global
+    newcomer_friendly: true
+    notes: "Design-focused. Good for logo/branding/UI contests."
+
+  - name: Wellfound
+    url: https://wellfound.com
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, OTHER]
+    fee_notes: "Free to use; startup-to-freelancer direct contact"
+    vetted: false
+    region: global
+    newcomer_friendly: false
+    notes: "AngelList rebranded. Startup jobs and freelance contracts."
+
+  - name: We Work Remotely
+    url: https://weworkremotely.com
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, OTHER]
+    fee_notes: "Free to apply; clients pay to post"
+    vetted: false
+    region: global
+    newcomer_friendly: false
+    notes: "Remote job board. Mix of full-time and contract roles."
+
+  - name: RemoteOK
+    url: https://remoteok.com
+    categories: [WEB_APP, AI_AUTOMATION, DATA_DASHBOARD, OTHER]
+    fee_notes: "Free to apply"
+    vetted: false
+    region: global
+    newcomer_friendly: false
+    notes: "Popular remote job board aggregator. Mix of contract and FT."

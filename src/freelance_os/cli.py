@@ -1,9 +1,18 @@
 """Freelance Revenue OS CLI — AI prepares, human commits."""
 
+import sys
+import io
 from typing import Optional
 
 import typer
+from rich import box as rich_box
 from rich.console import Console
+
+# Force UTF-8 stdout on Windows (cp1252 can't encode box-drawing or non-ASCII chars).
+if hasattr(sys.stdout, "buffer") and getattr(sys.stdout, "encoding", "utf-8").lower() not in ("utf-8", "utf8"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "buffer") and getattr(sys.stderr, "encoding", "utf-8").lower() not in ("utf-8", "utf8"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 app = typer.Typer(
     name="freelance-os",
@@ -17,11 +26,13 @@ lead_app = typer.Typer(help="Lead management commands.", no_args_is_help=True)
 client_app = typer.Typer(help="Client workspace commands.", no_args_is_help=True)
 outcome_app = typer.Typer(help="Outcome tracking commands.", no_args_is_help=True)
 report_app = typer.Typer(help="Report commands.", no_args_is_help=True)
+sources_app = typer.Typer(help="Platform source directory commands.", no_args_is_help=True)
 
 app.add_typer(lead_app, name="lead")
 app.add_typer(client_app, name="client")
 app.add_typer(outcome_app, name="outcome")
 app.add_typer(report_app, name="report")
+app.add_typer(sources_app, name="sources")
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +45,8 @@ def init(
     config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
 ):
     """Initialize the data directory and SQLite database (idempotent)."""
+    import shutil
+    from pathlib import Path
     from freelance_os.config import ConfigError, load_config
     from freelance_os.db import create_tables, drop_tables, get_engine
 
@@ -54,6 +67,13 @@ def init(
     create_tables(engine, db_path)
     console.print(f"[green]Database initialized:[/green] {db_path}")
     console.print("[green]All tables ready (idempotent).[/green]")
+
+    # Copy sources.example.yaml -> sources.yaml if absent.
+    sources_example = Path("config/sources.example.yaml")
+    sources_dest = Path("config/sources.yaml")
+    if sources_example.exists() and not sources_dest.exists():
+        shutil.copy2(sources_example, sources_dest)
+        console.print(f"[green]Created:[/green] {sources_dest} (copied from example)")
 
 
 # ---------------------------------------------------------------------------
@@ -113,9 +133,13 @@ def lead_add_text(
 @lead_app.command("list")
 def lead_list(
     status: Optional[str] = typer.Option(None, "--status", help="Filter by status"),
+    category: Optional[str] = typer.Option(None, "--category", help="Filter by category (e.g. WEB_APP)"),
+    source: Optional[str] = typer.Option(None, "--source", help="Filter by source platform"),
+    decision: Optional[str] = typer.Option(None, "--decision", help="Filter by decision (e.g. DRAFT_NOW)"),
+    min_score: Optional[int] = typer.Option(None, "--min-score", help="Minimum lead score"),
     config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
 ):
-    """List all leads."""
+    """List leads with optional filters."""
     from freelance_os.config import load_config, ConfigError
     from freelance_os.db import get_engine
     from freelance_os.models import Lead
@@ -133,15 +157,25 @@ def lead_list(
         stmt = select(Lead)
         if status:
             stmt = stmt.where(Lead.status == status.upper())
+        if category:
+            stmt = stmt.where(Lead.category == category.upper())
+        if source:
+            stmt = stmt.where(Lead.source == source)
+        if decision:
+            stmt = stmt.where(Lead.decision == decision.upper())
         leads = session.exec(stmt).all()
+
+    if min_score is not None:
+        leads = [l for l in leads if l.lead_score is not None and l.lead_score >= min_score]
 
     if not leads:
         console.print("[dim]No leads found.[/dim]")
         return
 
-    table = Table(title="Leads", show_lines=False)
+    table = Table(title="Leads", show_lines=False, box=rich_box.ASCII)
     table.add_column("ID", style="cyan", width=4)
-    table.add_column("Status", style="yellow", width=18)
+    table.add_column("Cat", width=14)
+    table.add_column("Status", style="yellow", width=16)
     table.add_column("Score", width=6)
     table.add_column("Decision", width=12)
     table.add_column("Source", width=14)
@@ -150,13 +184,61 @@ def lead_list(
     for lead in leads:
         table.add_row(
             str(lead.id),
+            lead.category or "OTHER",
             lead.status,
             str(lead.lead_score) if lead.lead_score is not None else "-",
             lead.decision or "-",
             lead.source,
-            (lead.title or lead.source_url or "(no title)")[:60],
+            (lead.title or lead.source_url or "(no title)")[:55],
         )
     console.print(table)
+
+
+@lead_app.command("recategorize")
+def lead_recategorize(
+    lead_id: Optional[int] = typer.Argument(None, help="Lead ID to recategorize"),
+    all_leads: bool = typer.Option(False, "--all", help="Recategorize all leads"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Recategorize one lead or all leads using the keyword classifier."""
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead
+    from freelance_os.ingestion.classify import classify_lead
+    from sqlmodel import Session, select
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    engine = get_engine(cfg["paths"]["database_path"])
+
+    with Session(engine) as session:
+        if all_leads:
+            leads = session.exec(select(Lead)).all()
+        elif lead_id is not None:
+            lead = session.get(Lead, lead_id)
+            leads = [lead] if lead else []
+        else:
+            console.print("[red]Provide a LEAD_ID or --all.[/red]")
+            raise typer.Exit(1)
+
+        updated = 0
+        for lead in leads:
+            text = " ".join(filter(None, [lead.title, lead.description]))
+            new_cat = classify_lead(text)
+            if lead.category != new_cat:
+                lead.category = new_cat
+                session.add(lead)
+                updated += 1
+        session.commit()
+
+    if all_leads:
+        console.print(f"[green]Recategorized {updated} lead(s) (of {len(leads)} total).[/green]")
+    else:
+        console.print(f"[green]Lead #{lead_id} recategorized.[/green]")
 
 
 @lead_app.command("show")
@@ -504,7 +586,7 @@ def client_list(
         console.print("[dim]No client projects.[/dim]")
         return
 
-    table = Table(title="Client Projects")
+    table = Table(title="Client Projects", box=rich_box.ASCII)
     table.add_column("ID", style="cyan", width=4)
     table.add_column("Client", width=16)
     table.add_column("Project", width=20)
@@ -722,6 +804,147 @@ def tune(
         threading.Thread(target=_open, daemon=True).start()
 
     uvicorn.run(tuner_app, host="127.0.0.1", port=port, log_level="warning")
+
+
+@sources_app.command("list")
+def sources_list(
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by job category"),
+    newcomer: bool = typer.Option(False, "--newcomer", help="Only newcomer-friendly platforms"),
+    region: Optional[str] = typer.Option(None, "--region", "-r", help="Filter by region (global, us, eu, latam, ...)"),
+    config_dir: str = typer.Option("config", "--config-dir", help="Config directory"),
+):
+    """List freelance platforms from the source directory."""
+    from freelance_os.sources import load_sources, filter_sources
+    from rich.table import Table
+
+    sources = load_sources(config_dir)
+    if not sources:
+        console.print("[yellow]No sources found. Run 'freelance-os init' to create config/sources.yaml.[/yellow]")
+        raise typer.Exit(0)
+
+    filtered = filter_sources(sources, category=category, newcomer=newcomer, region=region)
+    if not filtered:
+        console.print("[dim]No platforms match the given filters.[/dim]")
+        return
+
+    table = Table(title="Freelance Platforms", box=rich_box.ASCII)
+    table.add_column("Name", style="cyan", width=18)
+    table.add_column("Region", width=8)
+    table.add_column("Vetted", width=6)
+    table.add_column("New-OK", width=6)
+    table.add_column("Categories", width=42)
+    table.add_column("Fee Notes")
+
+    for s in filtered:
+        cats = ", ".join(s.get("categories", []))
+        table.add_row(
+            s.get("name", ""),
+            s.get("region", ""),
+            "yes" if s.get("vetted") else "no",
+            "yes" if s.get("newcomer_friendly") else "no",
+            cats[:40],
+            s.get("fee_notes", ""),
+        )
+    console.print(table)
+
+
+@app.command()
+def board(
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Show job board summary grouped by category and source."""
+    from collections import defaultdict
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead
+    from sqlmodel import Session, select
+    from rich.table import Table
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    engine = get_engine(cfg["paths"]["database_path"])
+    with Session(engine) as session:
+        leads = session.exec(select(Lead)).all()
+
+    if not leads:
+        console.print("[dim]No leads in the database.[/dim]")
+        return
+
+    # Build category summary
+    cat_data: dict = defaultdict(lambda: {"count": 0, "scores": [], "decisions": defaultdict(int)})
+    src_data: dict = defaultdict(lambda: {"count": 0, "scores": [], "decisions": defaultdict(int)})
+
+    for lead in leads:
+        cat = lead.category or "OTHER"
+        src = lead.source or "unknown"
+        dec = lead.decision or "unset"
+
+        cat_data[cat]["count"] += 1
+        cat_data[cat]["decisions"][dec] += 1
+        if lead.lead_score is not None:
+            cat_data[cat]["scores"].append(lead.lead_score)
+
+        key = (src, cat)
+        src_data[key]["count"] += 1
+        src_data[key]["decisions"][dec] += 1
+        if lead.lead_score is not None:
+            src_data[key]["scores"].append(lead.lead_score)
+
+    console.print(f"\n[bold]Job Board Summary[/bold] — {len(leads)} lead(s) total\n")
+
+    # Category table
+    cat_table = Table(title="By Category", box=rich_box.ASCII)
+    cat_table.add_column("Category", style="cyan", width=16)
+    cat_table.add_column("Count", width=6)
+    cat_table.add_column("Avg Score", width=10)
+    cat_table.add_column("DRAFT_NOW", width=10)
+    cat_table.add_column("WATCH", width=7)
+    cat_table.add_column("MAYBE", width=7)
+    cat_table.add_column("REJECT", width=7)
+    cat_table.add_column("Unset", width=6)
+
+    for cat in sorted(cat_data.keys()):
+        d = cat_data[cat]
+        avg = f"{sum(d['scores']) / len(d['scores']):.1f}" if d["scores"] else "--"
+        decs = d["decisions"]
+        cat_table.add_row(
+            cat,
+            str(d["count"]),
+            avg,
+            str(decs.get("DRAFT_NOW", 0)),
+            str(decs.get("WATCH", 0)),
+            str(decs.get("MAYBE", 0)),
+            str(decs.get("REJECT", 0)),
+            str(decs.get("unset", 0)),
+        )
+    console.print(cat_table)
+
+    # Source x category table
+    src_table = Table(title="By Source x Category", box=rich_box.ASCII)
+    src_table.add_column("Source", style="yellow", width=16)
+    src_table.add_column("Category", style="cyan", width=16)
+    src_table.add_column("Count", width=6)
+    src_table.add_column("Avg Score", width=10)
+    src_table.add_column("DRAFT_NOW", width=10)
+    src_table.add_column("WATCH", width=7)
+
+    for (src, cat) in sorted(src_data.keys()):
+        d = src_data[(src, cat)]
+        avg = f"{sum(d['scores']) / len(d['scores']):.1f}" if d["scores"] else "--"
+        decs = d["decisions"]
+        src_table.add_row(
+            src,
+            cat,
+            str(d["count"]),
+            avg,
+            str(decs.get("DRAFT_NOW", 0)),
+            str(decs.get("WATCH", 0)),
+        )
+    console.print(src_table)
 
 
 @report_app.command("weekly")
