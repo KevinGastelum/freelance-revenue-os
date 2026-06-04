@@ -130,6 +130,139 @@ def lead_add_text(
     console.print(f"[green]Lead #{lead.id} created from {source}[/green]")
 
 
+@lead_app.command("ingest-email")
+def lead_ingest_email(
+    input: Optional[str] = typer.Option(None, "--input", "-i", help=".eml or .mbox file path"),
+    text: Optional[str] = typer.Option(None, "--text", help="Raw email text (or use stdin)"),
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="Override detected source platform"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Parse job-alert emails (.eml, .mbox, pasted text/stdin) into leads."""
+    import sys
+    from pathlib import Path as _Path
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.db import get_engine
+    from freelance_os.ingestion.email_parser import parse_eml_file, parse_mbox_file, parse_raw_text
+    from freelance_os.ingestion.classify import classify_lead
+    from freelance_os.models import Lead, LeadStatus
+    from sqlmodel import Session, select
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    raw_jobs = []
+    if input is not None:
+        p = _Path(input)
+        if not p.exists():
+            console.print(f"[red]File not found:[/red] {p}")
+            raise typer.Exit(1)
+        suffix = p.suffix.lower()
+        if suffix == ".eml":
+            raw_jobs = parse_eml_file(p, source_override=source)
+        elif suffix == ".mbox":
+            raw_jobs = parse_mbox_file(p, source_override=source)
+        else:
+            raw_jobs = parse_raw_text(p.read_text(encoding="utf-8", errors="replace"), source)
+    else:
+        if text is None:
+            if sys.stdin.isatty():
+                console.print("[yellow]Paste email text, then press Ctrl+D:[/yellow]")
+            text = sys.stdin.read().strip()
+        if not text:
+            console.print("[red]No input provided. Use --input FILE or --text TEXT.[/red]")
+            raise typer.Exit(1)
+        raw_jobs = parse_raw_text(text, source)
+
+    if not raw_jobs:
+        console.print("[yellow]No job postings detected in input.[/yellow]")
+        return
+
+    engine = get_engine(cfg["paths"]["database_path"])
+    created, skipped = _save_email_leads(raw_jobs, engine)
+    console.print(f"[green]Created {created} lead(s)[/green], [dim]skipped {skipped} duplicate(s).[/dim]")
+
+
+@lead_app.command("ingest-imap")
+def lead_ingest_imap(
+    max_emails: int = typer.Option(50, "--max", help="Max emails to scan"),
+    source: Optional[str] = typer.Option(None, "--source", help="Override detected source platform"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Fetch job-alert emails via IMAP and import as leads (read-only).
+
+    Requires [imap] host and user in settings.toml, and
+    FREELANCE_OS_IMAP_PASSWORD env var set to an app-specific password.
+    """
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.db import get_engine
+    from freelance_os.ingestion.imap_fetch import fetch_job_alert_emails
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    try:
+        raw_jobs = fetch_job_alert_emails(cfg, max_emails=max_emails, source_override=source)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1)
+
+    if not raw_jobs:
+        console.print("[dim]No job alerts found in the configured mailbox.[/dim]")
+        return
+
+    engine = get_engine(cfg["paths"]["database_path"])
+    created, skipped = _save_email_leads(raw_jobs, engine)
+    console.print(f"[green]Created {created} lead(s)[/green], [dim]skipped {skipped} duplicate(s).[/dim]")
+
+
+def _save_email_leads(raw_jobs: list, engine) -> tuple:
+    """Dedup-check and insert email-parsed job leads. Returns (created, skipped)."""
+    from freelance_os.ingestion.classify import classify_lead
+    from freelance_os.models import Lead, LeadStatus
+    from sqlmodel import Session, select
+
+    created, skipped = 0, 0
+    with Session(engine) as session:
+        for job in raw_jobs:
+            if job.get("source_url"):
+                if session.exec(select(Lead).where(Lead.source_url == job["source_url"])).first():
+                    skipped += 1
+                    continue
+            elif job.get("source") and job.get("title"):
+                if session.exec(
+                    select(Lead)
+                    .where(Lead.source == job["source"])
+                    .where(Lead.title == job["title"])
+                ).first():
+                    skipped += 1
+                    continue
+
+            classify_text = " ".join(filter(None, [job.get("title"), job.get("description")]))
+            lead = Lead(
+                source=job.get("source", "email"),
+                source_url=job.get("source_url"),
+                title=job.get("title"),
+                description=job.get("description"),
+                budget_type=job.get("budget_type"),
+                budget_min=job.get("budget_min"),
+                budget_max=job.get("budget_max"),
+                hourly_min=job.get("hourly_min"),
+                hourly_max=job.get("hourly_max"),
+                status=LeadStatus.NEW,
+                category=classify_lead(classify_text),
+            )
+            session.add(lead)
+            created += 1
+        session.commit()
+    return created, skipped
+
+
 @lead_app.command("list")
 def lead_list(
     status: Optional[str] = typer.Option(None, "--status", help="Filter by status"),
