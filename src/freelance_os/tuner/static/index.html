@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Freelance OS — Metric Tuning Console</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:monospace;font-size:13px;background:#1a1a1a;color:#d8dee9;padding:8px}
+h2{font-size:13px;color:#88c0d0;border-bottom:1px solid #3b4252;padding-bottom:3px;margin-bottom:6px}
+h3{font-size:11px;color:#81a1c1;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
+.toolbar{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid #3b4252;margin-bottom:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:360px 1fr;gap:10px;align-items:start}
+.panel{background:#242933;border:1px solid #3b4252;padding:8px;border-radius:3px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#2e3440;color:#88c0d0;text-align:left;padding:3px 5px;font-size:11px;position:sticky;top:0}
+td{padding:2px 5px;border-bottom:1px solid #2e3440;white-space:nowrap}
+tr:hover td{background:#2e3440}
+.up{color:#a3be8c}
+.dn{color:#bf616a}
+.changed td{background:#2d2f24!important}
+.badge{display:inline-block;padding:0 5px;border-radius:3px;font-size:10px;font-weight:bold}
+.bd{background:#a3be8c;color:#1a1a1a}.bw{background:#ebcb8b;color:#1a1a1a}
+.bm{background:#d08770;color:#1a1a1a}.br{background:#bf616a;color:#e0e0e0}
+.param-row{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.param-row label{width:190px;font-size:11px;color:#8090a0;flex-shrink:0}
+input[type=range]{flex:1;min-width:60px;accent-color:#88c0d0}
+input[type=number]{width:64px;background:#2e3440;color:#d8dee9;border:1px solid #4c566a;padding:2px 3px;font-size:12px;border-radius:2px}
+button{background:#3b4252;color:#d8dee9;border:1px solid #4c566a;padding:3px 10px;cursor:pointer;font-size:12px;border-radius:2px}
+button:hover{background:#4c566a;border-color:#88c0d0}
+button.primary{background:#4c7899;border-color:#88c0d0}
+button.save-btn{background:#4a6741;border-color:#a3be8c}
+select{background:#2e3440;color:#d8dee9;border:1px solid #4c566a;padding:3px 5px;font-size:12px;border-radius:2px}
+#statusMsg{color:#ebcb8b;font-size:11px}
+.weight-sum-ok{color:#a3be8c}.weight-sum-bad{color:#bf616a}
+code{background:#2e3440;padding:1px 4px;border-radius:2px;font-size:11px}
+.section-head{color:#81a1c1;font-size:11px;font-weight:bold;margin:6px 0 2px;padding:2px 0;border-bottom:1px solid #3b4252}
+#markersPanel{display:none}
+#noLeads{color:#6a7482;font-size:12px;padding:20px;text-align:center}
+.marker-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.overflow-x{overflow-x:auto}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <strong style="color:#88c0d0;font-size:14px">Freelance OS — Metric Tuning Console</strong>
+  <button class="primary" onclick="rescore()" title="Re-score all leads with current params">&#9654; Re-score</button>
+  <button class="save-btn" onclick="saveConfig()" title="Write params to scoring_rules.toml">&#128190; Save</button>
+  <select id="presetSelect"><option value="">— load preset —</option></select>
+  <button onclick="loadPreset()">Load Preset</button>
+  <button onclick="savePreset()">Save Preset As…</button>
+  <label style="color:#6a7482;font-size:11px">auto-rescore: <input type="checkbox" id="autoRescore" checked></label>
+  <span id="statusMsg"></span>
+</div>
+
+<div class="grid">
+  <!-- LEFT: parameters -->
+  <div>
+    <div class="panel">
+      <h2>Decision Thresholds</h2>
+      <div id="thresholdsPanel"></div>
+    </div>
+    <div class="panel">
+      <h2>Component Weights &nbsp;<span id="weightSum" class="weight-sum-ok">100</span></h2>
+      <p style="font-size:10px;color:#5a6374;margin-bottom:4px">Target sum = 100. Each slider is 0–50.</p>
+      <div id="weightsPanel"></div>
+    </div>
+    <div class="panel">
+      <h2>Risk Penalties</h2>
+      <div id="penaltiesPanel"></div>
+    </div>
+    <div class="panel">
+      <h2>Pricing Parameters</h2>
+      <div id="pricingPanel"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: markers -->
+  <div>
+    <div id="noLeads" class="panel">
+      No leads in database yet.<br>Add leads with <code>freelance-os lead add-text</code>, then score with <code>freelance-os lead score --all-new</code>.
+    </div>
+    <div id="markersPanel">
+      <div class="panel">
+        <h2>Aggregate Markers</h2>
+        <div class="marker-grid">
+          <div>
+            <h3>Stats (before → after)</h3>
+            <table id="statsTable">
+              <thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Δ</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <h3>Decision Distribution</h3>
+            <table id="distTable">
+              <thead><tr><th>Bucket</th><th>Before</th><th>After</th><th>Δ</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div>
+            <h3>Calibration — Win Rate by Decision Bucket</h3>
+            <p style="font-size:10px;color:#5a6374;margin-bottom:4px">Do DRAFT_NOW leads actually win? Requires recorded outcomes.</p>
+            <table id="calTable">
+              <thead><tr><th>Decision</th><th>Outcomes</th><th>Win% Before</th><th>Win% After</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <h3>Top Reason Codes (new scoring)</h3>
+            <table id="codesTable">
+              <thead><tr><th>Code</th><th>Count</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Decision Changes — <span id="changedCount">0</span> leads flipped</h2>
+        <div class="overflow-x">
+        <table id="changesTable">
+          <thead><tr><th>ID</th><th>Title</th><th>Old</th><th>New</th><th>Δ Score</th><th>Outcome</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>All Leads — per-lead old vs new</h2>
+        <div class="overflow-x">
+        <table id="leadsTable">
+          <thead><tr>
+            <th>ID</th><th>Title</th>
+            <th>Old Score</th><th>New Score</th><th>Δ</th>
+            <th>Old Decision</th><th>New Decision</th><th>Changed?</th>
+            <th>Outcome</th><th>Reason Codes</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+let currentConfig = {};
+let rescoreTimer = null;
+
+function badge(d) {
+  const map = {DRAFT_NOW:'bd',WATCH:'bw',MAYBE:'bm',REJECT:'br'};
+  return d ? `<span class="badge ${map[d]||'br'}">${d}</span>` : '';
+}
+
+function paramRow(key, val, min, max, step, label, unit) {
+  const id = 'p_' + key;
+  const u = unit ? ` <span style="color:#5a6374;font-size:10px">${unit}</span>` : '';
+  return `<div class="param-row">
+    <label for="${id}_n">${label}${u}</label>
+    <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"
+      oninput="syncNum('${id}');scheduleRescore()">
+    <input type="number" id="${id}_n" min="${min}" max="${max}" step="${step}" value="${val}"
+      oninput="syncRange('${id}');scheduleRescore()">
+  </div>`;
+}
+
+function syncNum(id) {
+  const r = document.getElementById(id);
+  const n = document.getElementById(id+'_n');
+  if (r && n) n.value = r.value;
+  updateWeightSum();
+}
+
+function syncRange(id) {
+  const r = document.getElementById(id);
+  const n = document.getElementById(id+'_n');
+  if (r && n) r.value = n.value;
+  updateWeightSum();
+}
+
+function updateWeightSum() {
+  const keys = Object.keys((currentConfig.weights)||{});
+  let sum = 0;
+  for (const k of keys) {
+    const el = document.getElementById('p_weights__'+k+'_n');
+    if (el) sum += parseFloat(el.value)||0;
+  }
+  const el = document.getElementById('weightSum');
+  if (el) {
+    el.textContent = Math.round(sum*10)/10;
+    el.className = Math.abs(sum-100) <= 1 ? 'weight-sum-ok' : 'weight-sum-bad';
+  }
+}
+
+function renderParams(cfg) {
+  const t = cfg.thresholds||{};
+  document.getElementById('thresholdsPanel').innerHTML =
+    paramRow('thresholds__draft_now_min', t.draft_now_min??80, 50, 100, 1, 'DRAFT_NOW minimum', 'score')
+   +paramRow('thresholds__watch_min',     t.watch_min??65,     0, 100, 1, 'WATCH minimum', 'score')
+   +paramRow('thresholds__maybe_min',     t.maybe_min??50,     0, 100, 1, 'MAYBE minimum', 'score');
+
+  const w = cfg.weights||{};
+  document.getElementById('weightsPanel').innerHTML = Object.entries(w)
+    .map(([k,v]) => paramRow('weights__'+k, v, 0, 50, 1, k.replace(/_/g,' '), 'pts'))
+    .join('');
+
+  const rp = cfg.risk_penalties||{};
+  document.getElementById('penaltiesPanel').innerHTML = Object.entries(rp)
+    .map(([k,v]) => paramRow('penalties__'+k, v, 0, 50, 1, k.replace(/_/g,' '), 'pts'))
+    .join('');
+
+  const p = cfg.pricing||{};
+  document.getElementById('pricingPanel').innerHTML =
+    paramRow('pricing__target_hourly_rate',    p.target_hourly_rate??75,    10, 500,  5,    'Target hourly rate', '$')
+   +paramRow('pricing__minimum_project_value', p.minimum_project_value??300, 0, 10000,50,   'Minimum project value', '$')
+   +paramRow('pricing__risk_multiplier_low',   p.risk_multiplier_low??1.0,  0.5, 3,  0.05, 'Risk multiplier (low)', 'x')
+   +paramRow('pricing__risk_multiplier_medium',p.risk_multiplier_medium??1.25,0.5,3, 0.05, 'Risk multiplier (medium)', 'x')
+   +paramRow('pricing__risk_multiplier_high',  p.risk_multiplier_high??1.5, 0.5, 3,  0.05, 'Risk multiplier (high)', 'x')
+   +paramRow('pricing__rush_multiplier',       p.rush_multiplier??1.25,     1,   3,  0.05, 'Rush multiplier', 'x')
+   +paramRow('pricing__platform_fee_buffer',   p.platform_fee_buffer??0.10, 0,  0.5, 0.01, 'Platform fee buffer', 'frac');
+
+  updateWeightSum();
+}
+
+function collectParams() {
+  const params = {weights:{}, risk_penalties:{}, thresholds:{}, pricing:{}};
+  document.querySelectorAll('[id^="p_"][id$="_n"]').forEach(el => {
+    const key = el.id.replace(/^p_/, '').replace(/_n$/, '');
+    const [sect, ...rest] = key.split('__');
+    const k = rest.join('__');
+    const v = parseFloat(el.value);
+    const sectMap = {weights:'weights', penalties:'risk_penalties', thresholds:'thresholds', pricing:'pricing'};
+    const s = sectMap[sect];
+    if (s) params[s][k] = v;
+  });
+  return params;
+}
+
+function scheduleRescore() {
+  if (!document.getElementById('autoRescore').checked) return;
+  clearTimeout(rescoreTimer);
+  rescoreTimer = setTimeout(rescore, 600);
+}
+
+async function rescore() {
+  clearTimeout(rescoreTimer);
+  const params = collectParams();
+  setStatus('Scoring…');
+  try {
+    const resp = await fetch('/api/preview', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(params)
+    });
+    if (!resp.ok) { setStatus('Error: ' + await resp.text()); return; }
+    const data = await resp.json();
+    renderMarkers(data);
+    setStatus(`✓ ${data.leads.length} leads scored. ${data.markers.changed_decision_count} decisions changed.`);
+  } catch(e) { setStatus('Error: '+e.message); }
+}
+
+function renderMarkers(data) {
+  const m = data.markers;
+  const hasLeads = data.leads.length > 0;
+  document.getElementById('noLeads').style.display = hasLeads ? 'none' : '';
+  document.getElementById('markersPanel').style.display = hasLeads ? '' : 'none';
+  if (!hasLeads) return;
+
+  // Stats
+  const statsBody = document.querySelector('#statsTable tbody');
+  const d_avg = m.avg_score_after - m.avg_score_before;
+  const d_med = m.median_score_after - m.median_score_before;
+  statsBody.innerHTML = `
+    <tr><td>Avg score</td><td>${m.avg_score_before.toFixed(1)}</td><td>${m.avg_score_after.toFixed(1)}</td>
+        <td class="${d_avg>=0?'up':'dn'}">${d_avg>=0?'+':''}${d_avg.toFixed(1)}</td></tr>
+    <tr><td>Median score</td><td>${m.median_score_before.toFixed(1)}</td><td>${m.median_score_after.toFixed(1)}</td>
+        <td class="${d_med>=0?'up':'dn'}">${d_med>=0?'+':''}${d_med.toFixed(1)}</td></tr>
+    <tr><td>Total leads</td><td colspan="3">${data.leads.length}</td></tr>
+    <tr><td>Decision changes</td><td colspan="3" style="color:#ebcb8b"><b>${m.changed_decision_count}</b></td></tr>`;
+
+  // Distribution
+  const decisions = ['DRAFT_NOW','WATCH','MAYBE','REJECT'];
+  const distBody = document.querySelector('#distTable tbody');
+  distBody.innerHTML = decisions.map(d => {
+    const b = m.distribution_before[d]||0;
+    const a = m.distribution_after[d]||0;
+    const dlt = a-b;
+    return `<tr><td>${badge(d)}</td><td>${b}</td><td>${a}</td>
+            <td class="${dlt>0?'up':dlt<0?'dn':''}">${dlt>0?'+':''}${dlt}</td></tr>`;
+  }).join('');
+
+  // Calibration
+  const calBody = document.querySelector('#calTable tbody');
+  calBody.innerHTML = decisions.map(d => {
+    const cnt = m.outcome_count_by_decision_before[d]||0;
+    const wb = m.win_rate_by_decision_before[d];
+    const wa = m.win_rate_by_decision_after[d];
+    return `<tr><td>${badge(d)}</td><td>${cnt}</td>
+            <td>${wb!=null?(wb*100).toFixed(0)+'%':'n/a'}</td>
+            <td>${wa!=null?(wa*100).toFixed(0)+'%':'n/a'}</td></tr>`;
+  }).join('');
+
+  // Top codes
+  const codesBody = document.querySelector('#codesTable tbody');
+  codesBody.innerHTML = (m.top_reason_codes||[]).map(([code,cnt]) =>
+    `<tr><td><code>${code}</code></td><td>${cnt}</td></tr>`).join('');
+
+  // Changed decisions
+  document.getElementById('changedCount').textContent = m.changed_decision_count;
+  const changed = data.leads.filter(l => l.decision_changed);
+  document.querySelector('#changesTable tbody').innerHTML = changed.map(l => {
+    const dlt = l.delta;
+    return `<tr><td>${l.id}</td><td title="${l.title}">${l.title.substring(0,35)}</td>
+            <td>${badge(l.old_decision)}</td><td>${badge(l.new_decision)}</td>
+            <td class="${dlt>=0?'up':'dn'}">${dlt>=0?'+':''}${dlt}</td>
+            <td style="font-size:10px">${l.outcome||''}</td></tr>`;
+  }).join('');
+
+  // All leads
+  const leadsBody = document.querySelector('#leadsTable tbody');
+  leadsBody.innerHTML = data.leads.map(l => {
+    const dlt = l.delta;
+    const cls = l.decision_changed ? 'changed' : '';
+    const oldScoreStr = l.old_score !== null ? l.old_score : '<span style="color:#5a6374">unsco.</span>';
+    return `<tr class="${cls}">
+      <td>${l.id}</td>
+      <td title="${l.title}">${l.title.substring(0,32)}</td>
+      <td>${oldScoreStr}</td>
+      <td><b>${l.new_score}</b></td>
+      <td class="${dlt>0?'up':dlt<0?'dn':''}">${dlt>0?'+':''}${dlt}</td>
+      <td>${badge(l.old_decision)}</td>
+      <td>${badge(l.new_decision)}</td>
+      <td>${l.decision_changed?'<span style="color:#ebcb8b">&#9654;</span>':''}</td>
+      <td style="font-size:10px">${l.outcome||''}</td>
+      <td style="font-size:10px;color:#6a7482">${(l.reason_codes||[]).join(' ')}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveConfig() {
+  const params = collectParams();
+  setStatus('Saving…');
+  try {
+    const resp = await fetch('/api/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(params)
+    });
+    if (!resp.ok) { setStatus('Save error: '+await resp.text()); return; }
+    const r = await resp.json();
+    setStatus(`✓ Saved → ${r.path}`);
+  } catch(e) { setStatus('Error: '+e.message); }
+}
+
+async function loadPresets() {
+  try {
+    const resp = await fetch('/api/presets');
+    if (!resp.ok) return;
+    const presets = await resp.json();
+    const sel = document.getElementById('presetSelect');
+    sel.innerHTML = '<option value="">— load preset —</option>'
+      + presets.map(p => `<option value="${p}">${p}</option>`).join('');
+  } catch(_) {}
+}
+
+async function loadPreset() {
+  const name = document.getElementById('presetSelect').value;
+  if (!name) return;
+  try {
+    const resp = await fetch('/api/presets/'+encodeURIComponent(name));
+    if (!resp.ok) { setStatus('Error loading preset'); return; }
+    const cfg = await resp.json();
+    currentConfig = cfg;
+    renderParams(cfg);
+    setStatus(`Preset "${name}" loaded`);
+    if (document.getElementById('autoRescore').checked) rescore();
+  } catch(e) { setStatus('Error: '+e.message); }
+}
+
+async function savePreset() {
+  const name = prompt('Preset name (alphanumeric, hyphens):');
+  if (!name || !name.trim()) return;
+  const params = collectParams();
+  try {
+    const resp = await fetch('/api/presets/'+encodeURIComponent(name.trim()), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(params)
+    });
+    if (!resp.ok) { setStatus('Error saving preset'); return; }
+    setStatus(`Preset "${name.trim()}" saved`);
+    await loadPresets();
+  } catch(e) { setStatus('Error: '+e.message); }
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+async function init() {
+  try {
+    const resp = await fetch('/api/config');
+    if (!resp.ok) { setStatus('Error loading config'); return; }
+    currentConfig = await resp.json();
+    renderParams(currentConfig);
+    await loadPresets();
+    await rescore();
+  } catch(e) { setStatus('Error: '+e.message); }
+}
+
+init();
+</script>
+</body>
+</html>

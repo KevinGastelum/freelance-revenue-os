@@ -683,6 +683,47 @@ def outcome_add(
 # report sub-commands
 # ---------------------------------------------------------------------------
 
+@app.command()
+def tune(
+    port: int = typer.Option(8765, "--port", "-p", help="Local port to bind (127.0.0.1 only)"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Do not open browser automatically"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Launch the metric-tuning web console on 127.0.0.1.
+
+    Adjust scoring weights, penalties, and thresholds; see live impact on all leads.
+    """
+    import webbrowser
+    import uvicorn  # type: ignore[import]
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.tuner.app import app as tuner_app, configure
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    db_path = cfg["paths"]["database_path"]
+    scoring_rules_path = "config/scoring_rules.toml"
+
+    configure(db_path=db_path, scoring_rules_path=scoring_rules_path)
+
+    url = f"http://127.0.0.1:{port}"
+    console.print(f"[green]Metric Tuning Console:[/green] {url}")
+    console.print("[dim]Press Ctrl+C to stop.[/dim]")
+
+    if not no_browser:
+        import threading
+        def _open():
+            import time
+            time.sleep(0.8)
+            webbrowser.open(url)
+        threading.Thread(target=_open, daemon=True).start()
+
+    uvicorn.run(tuner_app, host="127.0.0.1", port=port, log_level="warning")
+
+
 @report_app.command("weekly")
 def report_weekly(
     export: Optional[str] = typer.Option(None, "--export", help="Export to markdown file"),
