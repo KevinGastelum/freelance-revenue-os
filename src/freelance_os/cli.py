@@ -311,18 +311,30 @@ def lead_list(
     table.add_column("Status", style="yellow", width=16)
     table.add_column("Score", width=6)
     table.add_column("Decision", width=12)
+    table.add_column("Effort", width=8)
+    table.add_column("Conf", width=5)
+    table.add_column("WF", width=3)
     table.add_column("Source", width=14)
     table.add_column("Title", style="white")
 
     for lead in leads:
+        effort = (
+            f"{lead.effort_hours_low}-{lead.effort_hours_high}h"
+            if lead.effort_hours_low is not None else "-"
+        )
+        conf = lead.feasibility_confidence or "-"
+        wf = ("Y" if lead.warren_feasible else "N") if lead.warren_feasible is not None else "-"
         table.add_row(
             str(lead.id),
             lead.category or "OTHER",
             lead.status,
             str(lead.lead_score) if lead.lead_score is not None else "-",
             lead.decision or "-",
+            effort,
+            conf,
+            wf,
             lead.source,
-            (lead.title or lead.source_url or "(no title)")[:55],
+            (lead.title or lead.source_url or "(no title)")[:50],
         )
     console.print(table)
 
@@ -404,6 +416,7 @@ def lead_show(
     console.print(f"  Source:      {lead.source}")
     console.print(f"  URL:         {lead.source_url or '-'}")
     console.print(f"  Title:       {lead.title or '-'}")
+    console.print(f"  Category:    {lead.category or 'OTHER'}")
     console.print(f"  Status:      {lead.status}")
     console.print(f"  Decision:    {lead.decision or '-'}")
     console.print(f"  Score:       {lead.lead_score if lead.lead_score is not None else '-'}")
@@ -411,6 +424,17 @@ def lead_show(
     if lead.reason_codes:
         codes = _json.loads(lead.reason_codes)
         console.print(f"  Reasons:     {', '.join(codes)}")
+    if lead.feasibility_confidence is not None:
+        effort = f"{lead.effort_hours_low}-{lead.effort_hours_high}h" if lead.effort_hours_low is not None else "-"
+        wf = "yes" if lead.warren_feasible else "no"
+        price = f"${lead.suggested_price:.0f}" if lead.suggested_price is not None else "-"
+        turn = f"{lead.suggested_turnaround_days}d" if lead.suggested_turnaround_days is not None else "-"
+        console.print(f"\n  [bold]Feasibility[/bold]")
+        console.print(f"    Effort:      {effort}")
+        console.print(f"    Confidence:  {lead.feasibility_confidence}")
+        console.print(f"    Warren OK:   {wf}")
+        console.print(f"    Price:       {price}")
+        console.print(f"    Turnaround:  {turn}")
     console.print(f"  Imported:    {lead.imported_at}")
     if lead.description:
         console.print(f"\n  Description:\n{lead.description[:500]}")
@@ -514,6 +538,70 @@ def _do_score(lead_id: int, engine, cfg: dict) -> None:
         f"[green]Lead #{lead_id}[/green] score={result['lead_score']} "
         f"risk={result['risk_score']} decision={result['decision']} "
         f"reasons={result['reason_codes']}"
+    )
+
+
+@lead_app.command("estimate")
+def lead_estimate(
+    lead_id: Optional[int] = typer.Argument(None, help="Lead ID to estimate"),
+    all_leads: bool = typer.Option(False, "--all", help="Estimate all leads"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Estimate feasibility, effort, price, and turnaround for lead(s)."""
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead
+    from freelance_os.scoring.feasibility import estimate_feasibility
+    from sqlmodel import Session, select
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    engine = get_engine(cfg["paths"]["database_path"])
+
+    if all_leads:
+        with Session(engine) as session:
+            leads = session.exec(select(Lead)).all()
+        if not leads:
+            console.print("[dim]No leads to estimate.[/dim]")
+            return
+        for lead in leads:
+            _do_estimate(lead.id, engine, cfg)
+    elif lead_id is not None:
+        _do_estimate(lead_id, engine, cfg)
+    else:
+        console.print("[red]Provide a LEAD_ID or --all.[/red]")
+        raise typer.Exit(1)
+
+
+def _do_estimate(lead_id: int, engine, cfg: dict) -> None:
+    from freelance_os.models import Lead
+    from freelance_os.scoring.feasibility import estimate_feasibility
+    from sqlmodel import Session
+
+    with Session(engine) as session:
+        lead = session.get(Lead, lead_id)
+        if lead is None:
+            console.print(f"[red]Lead #{lead_id} not found.[/red]")
+            return
+        result = estimate_feasibility(lead, cfg)
+        lead.effort_hours_low = result["effort_hours_low"]
+        lead.effort_hours_high = result["effort_hours_high"]
+        lead.feasibility_confidence = result["feasibility_confidence"]
+        lead.warren_feasible = result["warren_feasible"]
+        lead.suggested_price = result["suggested_price"]
+        lead.suggested_turnaround_days = result["suggested_turnaround_days"]
+        session.add(lead)
+        session.commit()
+
+    wf = "yes" if result["warren_feasible"] else "no"
+    console.print(
+        f"[green]Lead #{lead_id}[/green] effort={result['effort_hours_low']}-{result['effort_hours_high']}h "
+        f"conf={result['feasibility_confidence']} warren_feasible={wf} "
+        f"price=${result['suggested_price']:.0f} turnaround={result['suggested_turnaround_days']}d"
     )
 
 
@@ -1008,7 +1096,9 @@ def board(
         return
 
     # Build category summary
-    cat_data: dict = defaultdict(lambda: {"count": 0, "scores": [], "decisions": defaultdict(int)})
+    cat_data: dict = defaultdict(lambda: {
+        "count": 0, "scores": [], "decisions": defaultdict(int), "wf": 0
+    })
     src_data: dict = defaultdict(lambda: {"count": 0, "scores": [], "decisions": defaultdict(int)})
 
     for lead in leads:
@@ -1020,6 +1110,8 @@ def board(
         cat_data[cat]["decisions"][dec] += 1
         if lead.lead_score is not None:
             cat_data[cat]["scores"].append(lead.lead_score)
+        if lead.warren_feasible:
+            cat_data[cat]["wf"] += 1
 
         key = (src, cat)
         src_data[key]["count"] += 1
@@ -1039,6 +1131,7 @@ def board(
     cat_table.add_column("MAYBE", width=7)
     cat_table.add_column("REJECT", width=7)
     cat_table.add_column("Unset", width=6)
+    cat_table.add_column("W-Feasible", width=11)
 
     for cat in sorted(cat_data.keys()):
         d = cat_data[cat]
@@ -1053,6 +1146,7 @@ def board(
             str(decs.get("MAYBE", 0)),
             str(decs.get("REJECT", 0)),
             str(decs.get("unset", 0)),
+            str(d["wf"]),
         )
     console.print(cat_table)
 
@@ -1078,6 +1172,88 @@ def board(
             str(decs.get("WATCH", 0)),
         )
     console.print(src_table)
+
+
+@app.command()
+def quickwins(
+    limit: int = typer.Option(10, "--limit", "-n", help="Max quick-wins to show"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Show top quick-win opportunities: warren-feasible, MED/HIGH confidence, low effort.
+
+    Ordered by score-per-effort-hour (best value first). Run 'lead estimate --all' first.
+    """
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead
+    from sqlmodel import Session, select
+    from rich.table import Table
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    engine = get_engine(cfg["paths"]["database_path"])
+    with Session(engine) as session:
+        leads = session.exec(
+            select(Lead)
+            .where(Lead.warren_feasible == True)  # noqa: E712
+        ).all()
+
+    # Filter to MED/HIGH confidence only
+    leads = [
+        l for l in leads
+        if l.feasibility_confidence in ("MED", "HIGH")
+        and l.effort_hours_high is not None
+    ]
+
+    if not leads:
+        console.print(
+            "[yellow]No quick-win leads found.[/yellow]\n"
+            "[dim]Tip: run 'freelance-os lead estimate --all' to populate feasibility data.[/dim]"
+        )
+        return
+
+    # Sort: score / effort_hours_high descending (high-score low-effort first)
+    def _priority(lead: Lead) -> float:
+        score = lead.lead_score if lead.lead_score is not None else 50
+        return score / lead.effort_hours_high
+
+    leads.sort(key=_priority, reverse=True)
+    leads = leads[:limit]
+
+    table = Table(title=f"Quick Wins (top {len(leads)})", box=rich_box.ASCII)
+    table.add_column("ID", style="cyan", width=4)
+    table.add_column("Category", width=16)
+    table.add_column("Score", width=6)
+    table.add_column("Effort", width=8)
+    table.add_column("Conf", width=5)
+    table.add_column("Price", width=8)
+    table.add_column("Days", width=5)
+    table.add_column("Source", width=14)
+    table.add_column("Title", style="white")
+
+    for lead in leads:
+        effort = f"{lead.effort_hours_low}-{lead.effort_hours_high}h"
+        price = f"${lead.suggested_price:.0f}" if lead.suggested_price is not None else "-"
+        table.add_row(
+            str(lead.id),
+            lead.category or "OTHER",
+            str(lead.lead_score) if lead.lead_score is not None else "-",
+            effort,
+            lead.feasibility_confidence or "-",
+            price,
+            str(lead.suggested_turnaround_days) if lead.suggested_turnaround_days is not None else "-",
+            lead.source,
+            (lead.title or lead.source_url or "(no title)")[:50],
+        )
+    console.print(table)
+    console.print(
+        f"\n[dim]{len(leads)} quick-win(s) — warren_feasible + MED/HIGH confidence, "
+        f"sorted by score/effort.[/dim]"
+    )
 
 
 @report_app.command("weekly")

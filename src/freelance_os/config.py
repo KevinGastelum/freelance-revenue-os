@@ -79,6 +79,7 @@ SAFE_DEFAULTS: Dict[str, Any] = {
         "risk_multiplier_medium": 1.25,
         "risk_multiplier_high": 1.5,
         "rush_multiplier": 1.25,
+        "quick_win_discount": 0.85,
     },
 }
 
