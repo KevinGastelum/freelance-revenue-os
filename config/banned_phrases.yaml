@@ -1,0 +1,22 @@
+# Banned phrases for proposal validation (per PRD section 11.2)
+# Any of these phrases in a proposal draft will cause a FAIL verdict.
+
+phrases:
+  - "I hope this message finds you well"
+  - "I am the perfect candidate"
+  - "I am the ideal candidate"
+  - "I have extensive experience"
+  - "I can do this easily"
+  - "Dear hiring manager"
+  - "Kindly"
+  - "Let's connect outside Upwork"
+  - "Let's connect outside Fiverr"
+  - "connect outside the platform"
+  - "communicate outside"
+  - "reach me at my email"
+  - "contact me directly"
+  - "move this conversation"
+  - "I am perfect for this"
+  - "I am highly experienced"
+  - "guaranteed results"
+  - "100% satisfaction guaranteed"

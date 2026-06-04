@@ -1,0 +1,31 @@
+# settings.example.toml — copy to config/settings.toml and customize
+# See docs/ARCHITECTURE.md for field descriptions.
+
+[user]
+name = "Kevin Alexis"
+default_timezone = "America/Mazatlan"
+target_hourly_rate = 75
+minimum_project_value = 300
+
+[paths]
+client_work_dir = "./client-work"
+portfolio_file = "./config/portfolio.yaml"
+database_path = "./data/freelance_os.sqlite"
+
+[safety]
+# IMPORTANT: All of the following MUST remain false.
+# Setting any to true will cause the application to refuse to start.
+# This is a hard safety enforcement per the Freelance Revenue OS safety policy.
+allow_browser_automation = false
+allow_auto_submit = false
+allow_auto_message = false
+allow_scraping = false
+require_human_approval = true
+
+[scoring]
+target_hourly_rate = 75
+minimum_project_value = 300
+risk_multiplier_low = 1.0
+risk_multiplier_medium = 1.25
+risk_multiplier_high = 1.5
+rush_multiplier = 1.25
