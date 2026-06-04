@@ -1,4 +1,4 @@
-"""Metric-tuning web console FastAPI app.
+"""Metric-tuning web console + Command Center dashboard FastAPI app.
 
 Bound strictly to 127.0.0.1 — no external network calls.
 Preview endpoint is read-only: never mutates the database.
@@ -12,7 +12,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -21,13 +21,19 @@ from pydantic import BaseModel
 # ---------------------------------------------------------------------------
 _db_path: str = "data/freelance_os.sqlite"
 _scoring_rules_path: str = "config/scoring_rules.toml"
+_config_dir: str = "config"
 
 
-def configure(db_path: str, scoring_rules_path: str = "config/scoring_rules.toml") -> None:
+def configure(
+    db_path: str,
+    scoring_rules_path: str = "config/scoring_rules.toml",
+    config_dir: str = "config",
+) -> None:
     """Set runtime paths — call before uvicorn.run() or in tests."""
-    global _db_path, _scoring_rules_path
+    global _db_path, _scoring_rules_path, _config_dir
     _db_path = db_path
     _scoring_rules_path = scoring_rules_path
+    _config_dir = config_dir
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +86,11 @@ class ScoringRulesModel(BaseModel):
     pricing: PricingModel = PricingModel()
 
 
+class ActionRequest(BaseModel):
+    action: str
+    params: Dict[str, Any] = {}
+
+
 # ---------------------------------------------------------------------------
 # TOML helpers
 # ---------------------------------------------------------------------------
@@ -98,7 +109,6 @@ def _load_scoring_rules_from_path(path: str) -> ScoringRulesModel:
         if p.exists():
             with open(p, "rb") as f:
                 data = tomllib.load(f)
-            # Build model from toml sections
             return ScoringRulesModel(
                 weights=WeightsModel(**{k: float(v) for k, v in data.get("weights", {}).items()}),
                 thresholds=ThresholdsModel(**{k: float(v) for k, v in data.get("thresholds", {}).items()}),
@@ -203,7 +213,6 @@ def _compute_preview(params: ScoringRulesModel) -> dict:
         leads = session.exec(select(Lead)).all()
         outcomes = session.exec(select(Outcome)).all()
 
-    # outcome map: lead_id -> OutcomeResult
     outcome_map: Dict[int, str] = {o.lead_id: o.result.value for o in outcomes}
 
     lead_results = []
@@ -212,7 +221,6 @@ def _compute_preview(params: ScoringRulesModel) -> dict:
     dist_before: Dict[str, int] = defaultdict(int)
     dist_after: Dict[str, int] = defaultdict(int)
     code_counter: Counter = Counter()
-    # decision -> list[bool] (True = WON)
     wins_by_old_dec: Dict[str, List[bool]] = defaultdict(list)
     wins_by_new_dec: Dict[str, List[bool]] = defaultdict(list)
 
@@ -294,10 +302,79 @@ def _compute_preview(params: ScoringRulesModel) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Dashboard helpers
+# ---------------------------------------------------------------------------
+
+def _lead_to_dict(lead: Any) -> dict:
+    """Serialize a Lead model instance to a JSON-safe dict."""
+    import json as _json
+
+    def _val(x: Any) -> Optional[str]:
+        if x is None:
+            return None
+        return x.value if hasattr(x, "value") else str(x)
+
+    return {
+        "id": lead.id,
+        "source": lead.source,
+        "source_url": lead.source_url,
+        "title": lead.title or "",
+        "description": lead.description or "",
+        "category": lead.category or "OTHER",
+        "status": _val(lead.status),
+        "lead_score": lead.lead_score,
+        "risk_score": lead.risk_score,
+        "decision": _val(lead.decision),
+        "reason_codes": _json.loads(lead.reason_codes) if lead.reason_codes else [],
+        "effort_hours_low": lead.effort_hours_low,
+        "effort_hours_high": lead.effort_hours_high,
+        "feasibility_confidence": lead.feasibility_confidence,
+        "warren_feasible": lead.warren_feasible,
+        "suggested_price": lead.suggested_price,
+        "suggested_turnaround_days": lead.suggested_turnaround_days,
+        "budget_type": lead.budget_type,
+        "budget_min": lead.budget_min,
+        "budget_max": lead.budget_max,
+        "hourly_min": lead.hourly_min,
+        "hourly_max": lead.hourly_max,
+        "client_name": lead.client_name,
+        "client_rating": lead.client_rating,
+        "client_payment_verified": lead.client_payment_verified,
+        "imported_at": lead.imported_at.isoformat() if lead.imported_at else None,
+        "posted_at": lead.posted_at.isoformat() if lead.posted_at else None,
+    }
+
+
+def _build_action_cfg() -> dict:
+    """Build a cfg dict suitable for scoring / feasibility / proposal actions."""
+    sr = _load_scoring_rules_from_path(_scoring_rules_path)
+    return {
+        "scoring_rules": {
+            "weights": sr.weights.model_dump(),
+            "thresholds": sr.thresholds.model_dump(),
+            "risk_penalties": sr.risk_penalties.model_dump(),
+        },
+        "scoring": {
+            "target_hourly_rate": sr.pricing.target_hourly_rate,
+            "minimum_project_value": sr.pricing.minimum_project_value,
+            "risk_multiplier_low": sr.pricing.risk_multiplier_low,
+            "risk_multiplier_medium": sr.pricing.risk_multiplier_medium,
+            "risk_multiplier_high": sr.pricing.risk_multiplier_high,
+            "rush_multiplier": sr.pricing.rush_multiplier,
+            "quick_win_discount": 0.85,
+        },
+        "paths": {
+            "database_path": _db_path,
+            "portfolio_file": str(Path(_config_dir) / "portfolio.yaml"),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Freelance OS Metric Tuning Console", version="0.1.0")
+app = FastAPI(title="Freelance OS Command Center", version="0.2.0")
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -309,6 +386,10 @@ def serve_ui() -> HTMLResponse:
         return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
     return HTMLResponse(content="<h1>index.html not found</h1>", status_code=500)
 
+
+# ---------------------------------------------------------------------------
+# Tuner (settings) endpoints — read-only preview, save to TOML
+# ---------------------------------------------------------------------------
 
 @app.get("/api/config")
 def get_config() -> dict:
@@ -360,3 +441,270 @@ def save_preset(name: str, params: ScoringRulesModel) -> dict:
     path = presets_dir / f"{name}.toml"
     _write_toml(params, str(path))
     return {"status": "saved", "preset": name, "path": str(path)}
+
+
+# ---------------------------------------------------------------------------
+# Dashboard — lead board endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/leads")
+def list_leads(
+    category: Optional[str] = None,
+    source: Optional[str] = None,
+    status: Optional[str] = None,
+    decision: Optional[str] = None,
+    min_score: Optional[int] = None,
+    warren_feasible: Optional[bool] = None,
+    quickwins_only: bool = False,
+    sort_by: str = "id",
+    order: str = "desc",
+) -> List[dict]:
+    """Return leads with optional filters and sort."""
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead
+    from sqlmodel import Session, select
+
+    engine = get_engine(_db_path)
+    with Session(engine) as session:
+        stmt = select(Lead)
+        if category:
+            stmt = stmt.where(Lead.category == category.upper())
+        if source:
+            stmt = stmt.where(Lead.source == source)
+        if status:
+            stmt = stmt.where(Lead.status == status.upper())
+        if decision:
+            stmt = stmt.where(Lead.decision == decision.upper())
+        if warren_feasible is not None:
+            stmt = stmt.where(Lead.warren_feasible == warren_feasible)  # noqa: E712
+        leads = session.exec(stmt).all()
+
+    if min_score is not None:
+        leads = [l for l in leads if l.lead_score is not None and l.lead_score >= min_score]
+
+    if quickwins_only:
+        leads = [
+            l for l in leads
+            if l.warren_feasible
+            and l.feasibility_confidence in ("MED", "HIGH")
+            and l.effort_hours_high is not None
+        ]
+
+    reverse = order.lower() == "desc"
+    if sort_by == "score":
+        leads = sorted(leads, key=lambda l: (l.lead_score or 0), reverse=reverse)
+    elif sort_by == "effort":
+        leads = sorted(leads, key=lambda l: (l.effort_hours_high or 9999), reverse=reverse)
+    elif sort_by == "price":
+        leads = sorted(leads, key=lambda l: (l.suggested_price or 0), reverse=reverse)
+    else:
+        leads = sorted(leads, key=lambda l: (l.id or 0), reverse=reverse)
+
+    return [_lead_to_dict(l) for l in leads]
+
+
+@app.get("/api/leads/{lead_id}")
+def get_lead(lead_id: int) -> dict:
+    """Return full lead detail including latest proposal draft."""
+    import json as _json
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead, ProposalDraft
+    from sqlmodel import Session, select
+
+    engine = get_engine(_db_path)
+    with Session(engine) as session:
+        lead = session.get(Lead, lead_id)
+        if lead is None:
+            raise HTTPException(status_code=404, detail=f"Lead {lead_id} not found")
+
+        draft = session.exec(
+            select(ProposalDraft)
+            .where(ProposalDraft.lead_id == lead_id)
+            .order_by(ProposalDraft.version.desc())  # type: ignore[arg-type]
+        ).first()
+
+        result = _lead_to_dict(lead)
+
+        if draft:
+            result["draft"] = {
+                "id": draft.id,
+                "version": draft.version,
+                "draft_text": draft.draft_text or "",
+                "technical_diagnosis": draft.technical_diagnosis or "",
+                "portfolio_matches": _json.loads(draft.portfolio_matches) if draft.portfolio_matches else [],
+                "clarifying_questions": _json.loads(draft.clarifying_questions) if draft.clarifying_questions else [],
+                "price_recommendation": draft.price_recommendation or "",
+                "validator_flags": _json.loads(draft.validator_flags) if draft.validator_flags else None,
+                "approved_by_user": draft.approved_by_user,
+                "created_at": draft.created_at.isoformat() if draft.created_at else None,
+            }
+        else:
+            result["draft"] = None
+
+    return result
+
+
+@app.post("/api/leads/{lead_id}/action")
+def lead_action(lead_id: int, body: ActionRequest) -> dict:
+    """Perform an action on a lead and persist the result to the DB."""
+    import json as _json
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead, LeadStatus, ProposalDraft
+    from sqlmodel import Session, select
+
+    engine = get_engine(_db_path)
+    cfg = _build_action_cfg()
+
+    with Session(engine) as session:
+        lead = session.get(Lead, lead_id)
+        if lead is None:
+            raise HTTPException(status_code=404, detail=f"Lead {lead_id} not found")
+
+        action = body.action
+
+        if action == "score":
+            from freelance_os.scoring.lead_scorer import score_lead
+            result = score_lead(lead, cfg)
+            lead.lead_score = result["lead_score"]
+            lead.risk_score = result["risk_score"]
+            lead.decision = result["decision"]
+            lead.reason_codes = _json.dumps(result["reason_codes"])
+            lead.status = LeadStatus.SCORED
+            session.add(lead)
+            session.commit()
+            return {"action": "score", "result": result}
+
+        elif action == "estimate":
+            from freelance_os.scoring.feasibility import estimate_feasibility
+            result = estimate_feasibility(lead, cfg)
+            lead.effort_hours_low = result["effort_hours_low"]
+            lead.effort_hours_high = result["effort_hours_high"]
+            lead.feasibility_confidence = result["feasibility_confidence"]
+            lead.warren_feasible = result["warren_feasible"]
+            lead.suggested_price = result["suggested_price"]
+            lead.suggested_turnaround_days = result["suggested_turnaround_days"]
+            session.add(lead)
+            session.commit()
+            return {"action": "estimate", "result": result}
+
+        elif action == "draft":
+            from freelance_os.proposal.draft_generator import generate_draft
+            draft_data = generate_draft(lead, cfg)
+            draft = ProposalDraft(
+                lead_id=lead_id,
+                draft_text=draft_data["draft_text"],
+                technical_diagnosis=draft_data["technical_diagnosis"],
+                portfolio_matches=_json.dumps(draft_data.get("portfolio_matches", [])),
+                clarifying_questions=_json.dumps(draft_data.get("clarifying_questions", [])),
+                price_recommendation=draft_data.get("price_recommendation"),
+            )
+            session.add(draft)
+            lead.status = LeadStatus.DRAFTED
+            session.add(lead)
+            session.commit()
+            session.refresh(draft)
+            return {
+                "action": "draft",
+                "draft_id": draft.id,
+                "draft_text": draft_data["draft_text"],
+            }
+
+        elif action == "validate":
+            draft = session.exec(
+                select(ProposalDraft)
+                .where(ProposalDraft.lead_id == lead_id)
+                .order_by(ProposalDraft.version.desc())  # type: ignore[arg-type]
+            ).first()
+            if draft is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No draft found. Run 'draft' action first.",
+                )
+            from freelance_os.proposal.proposal_validator import validate_draft
+            result = validate_draft(draft, cfg)
+            draft.validator_flags = _json.dumps(result)
+            session.add(draft)
+            session.commit()
+            return {"action": "validate", "result": result}
+
+        elif action == "status":
+            new_status_str = body.params.get("status", "").upper()
+            try:
+                new_status = LeadStatus(new_status_str)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid status '{new_status_str}'. Valid: {[s.value for s in LeadStatus]}",
+                )
+            lead.status = new_status
+            session.add(lead)
+            session.commit()
+            return {"action": "status", "new_status": new_status.value}
+
+        elif action == "save_draft":
+            draft = session.exec(
+                select(ProposalDraft)
+                .where(ProposalDraft.lead_id == lead_id)
+                .order_by(ProposalDraft.version.desc())  # type: ignore[arg-type]
+            ).first()
+            if draft is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No draft found. Run 'draft' action first.",
+                )
+            draft.draft_text = body.params.get("draft_text", "")
+            session.add(draft)
+            session.commit()
+            return {"action": "save_draft", "saved": True}
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown action: {action!r}")
+
+
+# ---------------------------------------------------------------------------
+# Dashboard — sources + quickwins endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/sources")
+def get_sources(
+    category: Optional[str] = None,
+    newcomer: Optional[bool] = None,
+    region: Optional[str] = None,
+) -> List[dict]:
+    """Return filtered freelance platform source directory."""
+    from freelance_os.sources import filter_sources, load_sources
+
+    sources = load_sources(_config_dir)
+    return filter_sources(
+        sources,
+        category=category,
+        newcomer=bool(newcomer) if newcomer is not None else False,
+        region=region,
+    )
+
+
+@app.get("/api/quickwins")
+def get_quickwins(limit: int = 20) -> List[dict]:
+    """Return top quick-win leads: warren-feasible, MED/HIGH confidence, sorted by score/effort."""
+    from freelance_os.db import get_engine
+    from freelance_os.models import Lead
+    from sqlmodel import Session, select
+
+    engine = get_engine(_db_path)
+    with Session(engine) as session:
+        leads = session.exec(
+            select(Lead).where(Lead.warren_feasible == True)  # noqa: E712
+        ).all()
+
+    leads = [
+        l for l in leads
+        if l.feasibility_confidence in ("MED", "HIGH")
+        and l.effort_hours_high is not None
+    ]
+
+    def _priority(lead: Any) -> float:
+        score = lead.lead_score if lead.lead_score is not None else 50
+        return score / lead.effort_hours_high
+
+    leads = sorted(leads, key=_priority, reverse=True)
+    return [_lead_to_dict(l) for l in leads[:limit]]
