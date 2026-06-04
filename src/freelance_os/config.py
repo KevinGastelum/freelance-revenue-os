@@ -14,6 +14,45 @@ class ConfigError(Exception):
     pass
 
 
+DEFAULT_SCORING_RULES: Dict[str, Any] = {
+    "thresholds": {
+        "draft_now_min": 80,
+        "watch_min": 65,
+        "maybe_min": 50,
+    },
+    "weights": {
+        "technical_fit": 20,
+        "budget_fit": 15,
+        "client_quality": 15,
+        "clarity_of_scope": 10,
+        "urgency_timing": 10,
+        "portfolio_match": 10,
+        "repeat_work_potential": 10,
+        "communication_quality": 10,
+    },
+    "risk_penalties": {
+        "unpaid_test_request": 25,
+        "payment_rule_bypass": 25,
+        "unrealistic_deadline": 20,
+        "vague_fixed_low_budget": 20,
+        "suspicious_payment": 15,
+        "scope_creep_risk": 15,
+        "easy_language_complex_work": 10,
+        "unclear_deliverables": 10,
+        "unsupported_tech_stack": 10,
+        "free_consultation_request": 10,
+    },
+    "pricing": {
+        "target_hourly_rate": 75,
+        "minimum_project_value": 300,
+        "risk_multiplier_low": 1.0,
+        "risk_multiplier_medium": 1.25,
+        "risk_multiplier_high": 1.5,
+        "rush_multiplier": 1.25,
+        "platform_fee_buffer": 0.10,
+    },
+}
+
 SAFE_DEFAULTS: Dict[str, Any] = {
     "user": {
         "name": "User",
@@ -73,8 +112,28 @@ def load_config(path: Optional[str] = None) -> Dict[str, Any]:
             with open(p, "rb") as f:
                 user_cfg = tomllib.load(f)
             cfg = _deep_merge(cfg, user_cfg)
+    cfg["scoring_rules"] = load_scoring_rules()
     _enforce_safety(cfg)
     return cfg
+
+
+def load_scoring_rules(path: Optional[str] = None) -> Dict[str, Any]:
+    """Load scoring rules from TOML, falling back to example then hard defaults."""
+    candidates = [
+        path,
+        "config/scoring_rules.toml",
+        "config/scoring_rules.example.toml",
+    ]
+    base = _deep_merge({}, DEFAULT_SCORING_RULES)
+    for candidate in candidates:
+        if not candidate:
+            continue
+        p = Path(candidate)
+        if p.exists():
+            with open(p, "rb") as f:
+                data = tomllib.load(f)
+            return _deep_merge(base, data)
+    return base
 
 
 def _enforce_safety(cfg: Dict[str, Any]) -> None:
