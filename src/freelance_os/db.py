@@ -21,13 +21,23 @@ def create_tables(engine=None, db_path: str = "data/freelance_os.sqlite"):
         engine = get_engine(db_path)
     SQLModel.metadata.create_all(engine)
 
-    # Migrate existing DBs: add category column if absent (old rows -> 'OTHER').
+    # Migrate existing DBs: add columns if absent.
+    _migrations = [
+        "ALTER TABLE lead ADD COLUMN category VARCHAR NOT NULL DEFAULT 'OTHER'",
+        "ALTER TABLE lead ADD COLUMN effort_hours_low INTEGER",
+        "ALTER TABLE lead ADD COLUMN effort_hours_high INTEGER",
+        "ALTER TABLE lead ADD COLUMN feasibility_confidence VARCHAR",
+        "ALTER TABLE lead ADD COLUMN warren_feasible BOOLEAN",
+        "ALTER TABLE lead ADD COLUMN suggested_price REAL",
+        "ALTER TABLE lead ADD COLUMN suggested_turnaround_days INTEGER",
+    ]
     with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE lead ADD COLUMN category VARCHAR NOT NULL DEFAULT 'OTHER'"))
-            conn.commit()
-        except Exception:
-            pass  # Column already exists
+        for stmt in _migrations:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                pass  # Column already exists
 
     return engine
 

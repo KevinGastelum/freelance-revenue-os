@@ -56,6 +56,12 @@ class OutcomeResult(str, Enum):
     WITHDRAWN = "WITHDRAWN"
 
 
+class FeasibilityConfidence(str, Enum):
+    LOW = "LOW"
+    MED = "MED"
+    HIGH = "HIGH"
+
+
 class Lead(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     source: str = Field(default="manual")
@@ -81,6 +87,13 @@ class Lead(SQLModel, table=True):
     raw_payload: Optional[str] = None   # JSON-encoded dict
     notes: Optional[str] = None
     category: str = Field(default=JobCategory.OTHER.value)
+    # Feasibility estimator fields (populated by 'lead estimate')
+    effort_hours_low: Optional[int] = None
+    effort_hours_high: Optional[int] = None
+    feasibility_confidence: Optional[str] = None  # LOW, MED, HIGH
+    warren_feasible: Optional[bool] = None
+    suggested_price: Optional[float] = None
+    suggested_turnaround_days: Optional[int] = None
 
 
 class ProposalDraft(SQLModel, table=True):
