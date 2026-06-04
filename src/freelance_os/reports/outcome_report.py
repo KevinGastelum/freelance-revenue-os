@@ -68,7 +68,7 @@ def generate_weekly_report(cfg: dict, export_path: Optional[str] = None) -> str:
     report_date = datetime.utcnow().strftime("%Y-%m-%d")
 
     lines = [
-        f"# Weekly Freelance Report — {report_date}",
+        f"# Weekly Freelance Report - {report_date}",
         "",
         "## Pipeline Summary",
         "",

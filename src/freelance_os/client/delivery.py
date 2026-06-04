@@ -50,7 +50,7 @@ def generate_delivery_package(
 
 def _changelog_content(project_name: str) -> str:
     return f"""\
-# Changelog — {project_name}
+# Changelog - {project_name}
 
 ## [Delivered]
 
@@ -71,7 +71,7 @@ def _changelog_content(project_name: str) -> str:
 
 def _handoff_content(project_name: str) -> str:
     return f"""\
-# Delivery Handoff — {project_name}
+# Delivery Handoff - {project_name}
 
 ## Summary of Completed Work
 
@@ -138,7 +138,7 @@ pytest
 
 def _qa_report_content(project_name: str) -> str:
     return f"""\
-# QA Report — {project_name}
+# QA Report - {project_name}
 
 ## Test Coverage
 

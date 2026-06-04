@@ -1,5 +1,6 @@
 """Phase 6: Execution harness tests."""
 
+import os
 import pytest
 from pathlib import Path
 
@@ -26,9 +27,9 @@ def test_tmux_script_generated(exec_cfg, tmp_path, monkeypatch):
     assert Path(script_path).exists()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="exec bit is POSIX-only")
 def test_tmux_script_is_executable(exec_cfg, tmp_path, monkeypatch):
     """Generated tmux script should have executable permission."""
-    import os
     from freelance_os.execution.tmux import generate_tmux_script
 
     monkeypatch.chdir(tmp_path)

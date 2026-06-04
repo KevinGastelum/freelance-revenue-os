@@ -186,7 +186,7 @@ def _workspace_readme_template(data: dict) -> str:
 
 def _changelog_template(data: dict) -> str:
     return f"""\
-# Changelog — {data['project_title']}
+# Changelog - {data['project_title']}
 
 All notable changes to this project will be documented here.
 
@@ -203,7 +203,7 @@ All notable changes to this project will be documented here.
 
 def _handoff_template(data: dict) -> str:
     return f"""\
-# Delivery Handoff — {data['project_title']}
+# Delivery Handoff - {data['project_title']}
 
 **Client:** {data['client_name']}
 
@@ -262,7 +262,7 @@ pytest
 
 def _invoice_notes_template(data: dict) -> str:
     return f"""\
-# Invoice Notes — {data['project_title']}
+# Invoice Notes - {data['project_title']}
 
 **Client:** {data['client_name']}
 

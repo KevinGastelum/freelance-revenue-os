@@ -6,38 +6,42 @@ from freelance_os.config import load_config, ConfigError
 
 def test_no_auto_submit_in_code():
     """Verify no auto-submit functionality exists in the codebase."""
-    import subprocess
-    result = subprocess.run(
-        ["grep", "-r", "auto_submit", "src/", "--include=*.py", "-l"],
-        capture_output=True, text=True, cwd="/workspace"
-    )
-    # Only config.py should reference it (as the safety check), not as functionality
-    files = [f for f in result.stdout.strip().split("\n") if f and "config.py" not in f]
-    assert not files, f"auto_submit found in non-config files: {files}"
+    from pathlib import Path
+
+    src_root = Path(__file__).resolve().parents[1] / "src" / "freelance_os"
+    hits = []
+    for py_file in src_root.rglob("*.py"):
+        if "config.py" in py_file.name:
+            continue
+        if "auto_submit" in py_file.read_text(encoding="utf-8"):
+            hits.append(str(py_file))
+    assert not hits, f"auto_submit found in non-config files: {hits}"
 
 
 def test_no_browser_automation_in_code():
     """Verify no browser automation code exists."""
-    import subprocess
+    from pathlib import Path
+
+    src_root = Path(__file__).resolve().parents[1] / "src" / "freelance_os"
     for keyword in ["selenium", "playwright", "puppeteer", "webdriver"]:
-        result = subprocess.run(
-            ["grep", "-r", keyword, "src/", "--include=*.py", "-l"],
-            capture_output=True, text=True, cwd="/workspace"
-        )
-        files = result.stdout.strip()
-        assert not files, f"Browser automation keyword '{keyword}' found in: {files}"
+        hits = [
+            str(p) for p in src_root.rglob("*.py")
+            if keyword in p.read_text(encoding="utf-8")
+        ]
+        assert not hits, f"Browser automation keyword '{keyword}' found in: {hits}"
 
 
 def test_no_proxy_or_captcha_in_code():
     """Verify no proxy/CAPTCHA bypass code exists."""
-    import subprocess
+    from pathlib import Path
+
+    src_root = Path(__file__).resolve().parents[1] / "src" / "freelance_os"
     for keyword in ["captcha", "proxy_rotate", "2captcha", "anticaptcha"]:
-        result = subprocess.run(
-            ["grep", "-r", keyword, "src/", "--include=*.py", "-l", "-i"],
-            capture_output=True, text=True, cwd="/workspace"
-        )
-        files = result.stdout.strip()
-        assert not files, f"Prohibited keyword '{keyword}' found in: {files}"
+        hits = [
+            str(p) for p in src_root.rglob("*.py")
+            if keyword in p.read_text(encoding="utf-8").lower()
+        ]
+        assert not hits, f"Prohibited keyword '{keyword}' found in: {hits}"
 
 
 def test_delivery_message_always_marked_draft():

@@ -1,8 +1,9 @@
 """Tmux session script generator per PRD section 15.1.
 
-Generates a shell script that the user runs manually — never auto-launches tmux.
+Generates a shell script that the user runs manually - never auto-launches tmux.
 """
 
+import os
 from pathlib import Path
 import re
 
@@ -56,7 +57,8 @@ echo "Attach with: tmux attach-session -t $SESSION"
 """
 
     script_path.write_text(script_content, encoding="utf-8")
-    script_path.chmod(0o755)
+    if os.name != "nt":
+        script_path.chmod(0o755)
 
     # Also generate .agent/ instruction files
     _generate_agent_files(project_name, cfg)
@@ -224,7 +226,7 @@ Maintain documentation and prepare the delivery package.
 ## Forbidden Changes
 
 - Do not send the delivery message automatically.
-- The delivery message is a DRAFT — the human sends it manually.
+- The delivery message is a DRAFT - the human sends it manually.
 
 ## Current Task
 
