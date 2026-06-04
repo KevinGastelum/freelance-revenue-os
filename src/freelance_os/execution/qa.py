@@ -11,7 +11,7 @@ def generate_qa_checklist(project_name: str, cfg: dict) -> str:
     qa_path = delivery_dir / "qa_report.md"
 
     content = f"""\
-# QA Report — {project_name}
+# QA Report - {project_name}
 
 ## Pre-Delivery Checklist
 

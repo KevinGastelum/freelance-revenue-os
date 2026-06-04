@@ -3,7 +3,7 @@
 
 def milestones_template(data: dict) -> str:
     return f"""\
-# Milestones — {data['project_title']}
+# Milestones - {data['project_title']}
 
 **Client:** {data['client_name']}
 
@@ -20,5 +20,5 @@ def milestones_template(data: dict) -> str:
 
 - Milestones will be updated as scope is clarified.
 - Each milestone should be confirmed with client before marking complete.
-- No milestone payment is requested automatically — client initiates release.
+- No milestone payment is requested automatically - client initiates release.
 """

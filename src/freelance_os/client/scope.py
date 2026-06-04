@@ -16,7 +16,7 @@ def brief_template(data: dict) -> str:
 
 ## Key Requirements
 
-(Extract from job description — to be filled during kickoff)
+(Extract from job description - to be filled during kickoff)
 
 ## Stakeholders
 
@@ -51,13 +51,13 @@ def scope_template(data: dict) -> str:
 
 ## Acceptance Criteria
 
-- [ ] (Criterion 1 — measurable)
+- [ ] (Criterion 1 - measurable)
 - [ ] (Criterion 2)
 - [ ] (Criterion 3)
 
 ## Assumptions
 
-- (Assumption 1 — to be validated with client)
+- (Assumption 1 - to be validated with client)
 
 ## Change Request Process
 
