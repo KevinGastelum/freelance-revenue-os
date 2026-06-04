@@ -14,12 +14,21 @@ def get_engine(db_path: str = "data/freelance_os.sqlite"):
 
 def create_tables(engine=None, db_path: str = "data/freelance_os.sqlite"):
     """Create all tables (idempotent — safe to call repeatedly)."""
-    # Import models to register them with SQLModel.metadata
+    from sqlalchemy import text
     import freelance_os.models  # noqa: F401
 
     if engine is None:
         engine = get_engine(db_path)
     SQLModel.metadata.create_all(engine)
+
+    # Migrate existing DBs: add category column if absent (old rows -> 'OTHER').
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE lead ADD COLUMN category VARCHAR NOT NULL DEFAULT 'OTHER'"))
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
+
     return engine
 
 

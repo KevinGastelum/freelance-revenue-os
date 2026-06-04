@@ -6,6 +6,7 @@ from typing import Optional
 from sqlmodel import Session
 
 from freelance_os.db import get_engine
+from freelance_os.ingestion.classify import classify_lead
 from freelance_os.models import Lead, LeadStatus
 
 
@@ -46,6 +47,7 @@ def add_lead_url(url: str, description: Optional[str], cfg: dict) -> Lead:
     """Create a lead from a URL, optionally with a pasted description."""
     budget_hints = _extract_budget(description or "")
     title = _extract_title(description or "") if description else None
+    category = classify_lead(description or "")
 
     lead = Lead(
         source="manual_url",
@@ -53,6 +55,7 @@ def add_lead_url(url: str, description: Optional[str], cfg: dict) -> Lead:
         title=title,
         description=description,
         status=LeadStatus.NEW,
+        category=category,
         **budget_hints,
     )
     engine = get_engine(cfg["paths"]["database_path"])
@@ -67,12 +70,14 @@ def add_lead_text(source: str, text: str, cfg: dict) -> Lead:
     """Create a lead from pasted text."""
     budget_hints = _extract_budget(text)
     title = _extract_title(text)
+    category = classify_lead(text)
 
     lead = Lead(
         source=source,
         description=text,
         title=title,
         status=LeadStatus.NEW,
+        category=category,
         **budget_hints,
     )
     engine = get_engine(cfg["paths"]["database_path"])
