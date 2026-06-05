@@ -986,16 +986,8 @@ def outcome_add(
 # report sub-commands
 # ---------------------------------------------------------------------------
 
-@app.command()
-def tune(
-    port: int = typer.Option(8765, "--port", "-p", help="Local port to bind (127.0.0.1 only)"),
-    no_browser: bool = typer.Option(False, "--no-browser", help="Do not open browser automatically"),
-    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
-):
-    """Launch the metric-tuning web console on 127.0.0.1.
-
-    Adjust scoring weights, penalties, and thresholds; see live impact on all leads.
-    """
+def _launch_web_app(port: int, no_browser: bool, config: Optional[str], title: str) -> None:
+    """Shared launcher for tune and dashboard commands."""
     import webbrowser
     import uvicorn  # type: ignore[import]
     from freelance_os.config import load_config, ConfigError
@@ -1009,11 +1001,12 @@ def tune(
 
     db_path = cfg["paths"]["database_path"]
     scoring_rules_path = "config/scoring_rules.toml"
+    config_dir = "config"
 
-    configure(db_path=db_path, scoring_rules_path=scoring_rules_path)
+    configure(db_path=db_path, scoring_rules_path=scoring_rules_path, config_dir=config_dir)
 
     url = f"http://127.0.0.1:{port}"
-    console.print(f"[green]Metric Tuning Console:[/green] {url}")
+    console.print(f"[green]{title}:[/green] {url}")
     console.print("[dim]Press Ctrl+C to stop.[/dim]")
 
     if not no_browser:
@@ -1025,6 +1018,35 @@ def tune(
         threading.Thread(target=_open, daemon=True).start()
 
     uvicorn.run(tuner_app, host="127.0.0.1", port=port, log_level="warning")
+
+
+@app.command()
+def tune(
+    port: int = typer.Option(8765, "--port", "-p", help="Local port to bind (127.0.0.1 only)"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Do not open browser automatically"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Launch the metric-tuning web console on 127.0.0.1.
+
+    Adjust scoring weights, penalties, and thresholds; see live impact on all leads.
+    """
+    _launch_web_app(port=port, no_browser=no_browser, config=config, title="Metric Tuning Console")
+
+
+@app.command()
+def dashboard(
+    port: int = typer.Option(8765, "--port", "-p", help="Local port to bind (127.0.0.1 only)"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Do not open browser automatically"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Launch the web command center on 127.0.0.1.
+
+    Panels: BOARD · DETAIL · OFFERS · QUICK-WINS · SOURCES · SETTINGS.
+    Browse leads, drill into details, edit proposal drafts, run scoring and
+    feasibility actions, see quick-win opportunities, explore the source
+    directory, and tune scoring weights — all in one app.
+    """
+    _launch_web_app(port=port, no_browser=no_browser, config=config, title="Command Center Dashboard")
 
 
 @sources_app.command("list")

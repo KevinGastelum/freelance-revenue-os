@@ -54,3 +54,18 @@ data/*.sqlite
 client-work/
 .agent/
 scripts/start_client_session.sh
+
+# --- sandbox/runtime artifacts (Warren dispatches must never commit these) ---
+.claude/.credentials.json
+.claude/.last-cleanup
+.claude/sessions/
+.claude/projects/
+.claude/backups/
+.claude/todos/
+.claude.json
+.canopy/
+.config/
+.gitconfig.burrow
+.profile
+.zshrc
+config/presets/

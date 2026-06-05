@@ -2,138 +2,245 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Freelance OS — Metric Tuning Console</title>
+<title>Freelance OS — Command Center</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:monospace;font-size:13px;background:#1a1a1a;color:#d8dee9;padding:8px}
+body{font-family:monospace;font-size:13px;background:#1a1a1a;color:#d8dee9}
+a{color:#88c0d0;text-decoration:none}
 h2{font-size:13px;color:#88c0d0;border-bottom:1px solid #3b4252;padding-bottom:3px;margin-bottom:6px}
 h3{font-size:11px;color:#81a1c1;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
-.toolbar{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid #3b4252;margin-bottom:8px;flex-wrap:wrap}
-.grid{display:grid;grid-template-columns:360px 1fr;gap:10px;align-items:start}
+.navbar{display:flex;align-items:center;gap:0;padding:6px 8px;background:#1e222a;border-bottom:1px solid #3b4252;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+.brand{color:#88c0d0;font-size:13px;font-weight:bold;margin-right:12px;white-space:nowrap}
+.tab-btn{background:#2e3440;color:#6a7482;border:none;border-bottom:2px solid transparent;padding:4px 12px;cursor:pointer;font-size:12px;font-family:monospace}
+.tab-btn:hover{color:#d8dee9;background:#3b4252}
+.tab-btn.active{color:#88c0d0;border-bottom-color:#88c0d0;background:#242933}
+#statusMsg{color:#ebcb8b;font-size:11px;margin-left:10px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab-content{padding:8px;display:none}
+.tab-content.active{display:block}
 .panel{background:#242933;border:1px solid #3b4252;padding:8px;border-radius:3px;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:#2e3440;color:#88c0d0;text-align:left;padding:3px 5px;font-size:11px;position:sticky;top:0}
-td{padding:2px 5px;border-bottom:1px solid #2e3440;white-space:nowrap}
+th{background:#2e3440;color:#88c0d0;text-align:left;padding:3px 5px;font-size:11px;white-space:nowrap}
+th.sort-asc::after{content:" ▲"}
+th.sort-desc::after{content:" ▼"}
+td{padding:2px 5px;border-bottom:1px solid #2e3440;white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis}
 tr:hover td{background:#2e3440}
-.up{color:#a3be8c}
-.dn{color:#bf616a}
-.changed td{background:#2d2f24!important}
+tr.selected td{background:#2d3348}
 .badge{display:inline-block;padding:0 5px;border-radius:3px;font-size:10px;font-weight:bold}
 .bd{background:#a3be8c;color:#1a1a1a}.bw{background:#ebcb8b;color:#1a1a1a}
 .bm{background:#d08770;color:#1a1a1a}.br{background:#bf616a;color:#e0e0e0}
-.param-row{display:flex;align-items:center;gap:4px;margin-bottom:3px}
-.param-row label{width:190px;font-size:11px;color:#8090a0;flex-shrink:0}
-input[type=range]{flex:1;min-width:60px;accent-color:#88c0d0}
-input[type=number]{width:64px;background:#2e3440;color:#d8dee9;border:1px solid #4c566a;padding:2px 3px;font-size:12px;border-radius:2px}
-button{background:#3b4252;color:#d8dee9;border:1px solid #4c566a;padding:3px 10px;cursor:pointer;font-size:12px;border-radius:2px}
+.filter-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;padding:6px;background:#1e222a;border:1px solid #3b4252;border-radius:3px}
+.filter-bar label{font-size:11px;color:#6a7482;white-space:nowrap}
+select,input[type=text],input[type=number]{background:#2e3440;color:#d8dee9;border:1px solid #4c566a;padding:2px 4px;font-size:12px;border-radius:2px;font-family:monospace}
+input[type=checkbox]{accent-color:#88c0d0;width:14px;height:14px;vertical-align:middle}
+button{background:#3b4252;color:#d8dee9;border:1px solid #4c566a;padding:3px 10px;cursor:pointer;font-size:12px;border-radius:2px;font-family:monospace}
 button:hover{background:#4c566a;border-color:#88c0d0}
 button.primary{background:#4c7899;border-color:#88c0d0}
 button.save-btn{background:#4a6741;border-color:#a3be8c}
-select{background:#2e3440;color:#d8dee9;border:1px solid #4c566a;padding:3px 5px;font-size:12px;border-radius:2px}
-#statusMsg{color:#ebcb8b;font-size:11px}
-.weight-sum-ok{color:#a3be8c}.weight-sum-bad{color:#bf616a}
+button.danger{background:#6b3a3a;border-color:#bf616a}
+.action-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.kv-table{font-size:12px;width:auto}
+.kv-table td:nth-child(odd){color:#6a7482;padding-right:8px;white-space:nowrap}
+.kv-table td:nth-child(even){color:#d8dee9;padding-right:20px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+pre{font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
+textarea{font-family:monospace;font-size:12px;background:#2e3440;color:#d8dee9;border:1px solid #4c566a;border-radius:2px;resize:vertical;padding:4px}
+.val-pass{color:#a3be8c;font-weight:bold}
+.val-warn{color:#ebcb8b;font-weight:bold}
+.val-fail{color:#bf616a;font-weight:bold}
 code{background:#2e3440;padding:1px 4px;border-radius:2px;font-size:11px}
-.section-head{color:#81a1c1;font-size:11px;font-weight:bold;margin:6px 0 2px;padding:2px 0;border-bottom:1px solid #3b4252}
-#markersPanel{display:none}
-#noLeads{color:#6a7482;font-size:12px;padding:20px;text-align:center}
-.marker-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.up{color:#a3be8c}.dn{color:#bf616a}
 .overflow-x{overflow-x:auto}
+.param-row{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.param-row label{width:200px;font-size:11px;color:#8090a0;flex-shrink:0}
+input[type=range]{flex:1;min-width:60px;accent-color:#88c0d0}
+input[type=number].param-num{width:64px}
+.weight-sum-ok{color:#a3be8c}.weight-sum-bad{color:#bf616a}
+.marker-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.changed td{background:#2d2f24!important}
+#noLeads{color:#6a7482;font-size:12px;padding:20px;text-align:center}
+.empty-msg{color:#6a7482;padding:20px;text-align:center;font-size:12px}
+@media(max-width:900px){.detail-grid{grid-template-columns:1fr}.marker-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
-<div class="toolbar">
-  <strong style="color:#88c0d0;font-size:14px">Freelance OS — Metric Tuning Console</strong>
-  <button class="primary" onclick="rescore()" title="Re-score all leads with current params">&#9654; Re-score</button>
-  <button class="save-btn" onclick="saveConfig()" title="Write params to scoring_rules.toml">&#128190; Save</button>
-  <select id="presetSelect"><option value="">— load preset —</option></select>
-  <button onclick="loadPreset()">Load Preset</button>
-  <button onclick="savePreset()">Save Preset As…</button>
-  <label style="color:#6a7482;font-size:11px">auto-rescore: <input type="checkbox" id="autoRescore" checked></label>
+<div class="navbar">
+  <span class="brand">Freelance OS</span>
+  <button class="tab-btn active" data-tab="board" onclick="switchTab('board')">BOARD</button>
+  <button class="tab-btn" data-tab="detail" onclick="switchTab('detail')">DETAIL</button>
+  <button class="tab-btn" data-tab="offers" onclick="switchTab('offers')">OFFERS</button>
+  <button class="tab-btn" data-tab="quickwins" onclick="switchTab('quickwins')">QUICK-WINS</button>
+  <button class="tab-btn" data-tab="sources" onclick="switchTab('sources')">SOURCES</button>
+  <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">SETTINGS</button>
   <span id="statusMsg"></span>
 </div>
 
-<div class="grid">
-  <!-- LEFT: parameters -->
-  <div>
-    <div class="panel">
-      <h2>Decision Thresholds</h2>
-      <div id="thresholdsPanel"></div>
-    </div>
-    <div class="panel">
-      <h2>Component Weights &nbsp;<span id="weightSum" class="weight-sum-ok">100</span></h2>
-      <p style="font-size:10px;color:#5a6374;margin-bottom:4px">Target sum = 100. Each slider is 0–50.</p>
-      <div id="weightsPanel"></div>
-    </div>
-    <div class="panel">
-      <h2>Risk Penalties</h2>
-      <div id="penaltiesPanel"></div>
-    </div>
-    <div class="panel">
-      <h2>Pricing Parameters</h2>
-      <div id="pricingPanel"></div>
-    </div>
+<!-- ===== BOARD ===== -->
+<div id="tab-board" class="tab-content active">
+  <div class="filter-bar">
+    <label>Category <select id="f_category" onchange="loadBoard()">
+      <option value="">all</option>
+      <option>WEB_APP</option><option>DATA_DASHBOARD</option><option>AI_AUTOMATION</option>
+      <option>SCRAPING_DATA</option><option>WORDPRESS</option><option>BUG_FIX</option><option>OTHER</option>
+    </select></label>
+    <label>Source <input type="text" id="f_source" style="width:90px" placeholder="upwork…" oninput="debounceLoad()"></label>
+    <label>Status <select id="f_status" onchange="loadBoard()">
+      <option value="">all</option>
+      <option>NEW</option><option>SCORED</option><option>DRAFTED</option><option>APPROVED_TO_APPLY</option>
+      <option>APPLIED_MANUALLY</option><option>INTERVIEW</option><option>WON</option>
+      <option>LOST</option><option>REJECTED</option><option>ARCHIVED</option>
+    </select></label>
+    <label>Decision <select id="f_decision" onchange="loadBoard()">
+      <option value="">all</option>
+      <option>DRAFT_NOW</option><option>WATCH</option><option>MAYBE</option><option>REJECT</option>
+    </select></label>
+    <label>Min score <input type="number" id="f_min_score" style="width:54px" min="0" max="100" placeholder="0" oninput="debounceLoad()"></label>
+    <label>WF <select id="f_warren_feasible" onchange="loadBoard()" style="width:60px">
+      <option value="">any</option><option value="true">Y</option><option value="false">N</option>
+    </select></label>
+    <label><input type="checkbox" id="f_quickwins" onchange="loadBoard()"> Quick-wins only</label>
+    <label>Sort <select id="f_sort_by" onchange="loadBoard()">
+      <option value="id">ID</option><option value="score">Score</option>
+      <option value="effort">Effort</option><option value="price">Price</option>
+    </select></label>
+    <label><select id="f_order" onchange="loadBoard()" style="width:60px">
+      <option value="desc">desc</option><option value="asc">asc</option>
+    </select></label>
+    <button onclick="loadBoard()">Refresh</button>
+  </div>
+  <div class="panel overflow-x">
+    <table id="boardTable">
+      <thead><tr>
+        <th style="width:36px">ID</th>
+        <th>Title</th>
+        <th>Category</th>
+        <th>Source</th>
+        <th style="width:44px">Score</th>
+        <th style="width:80px">Decision</th>
+        <th style="width:70px">Effort</th>
+        <th style="width:42px">Conf</th>
+        <th style="width:26px">WF</th>
+        <th style="width:64px">Price</th>
+        <th style="width:44px">Days</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody><tr><td colspan="12" class="empty-msg">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== DETAIL ===== -->
+<div id="tab-detail" class="tab-content">
+  <div id="detailContent">
+    <div class="panel empty-msg">No lead selected. Go to <button class="primary" onclick="switchTab('board')">BOARD</button> and click a row.</div>
+  </div>
+</div>
+
+<!-- ===== OFFERS ===== -->
+<div id="tab-offers" class="tab-content">
+  <div id="offersContent">
+    <div class="panel empty-msg">No lead selected. Go to BOARD, click a row, then click "Edit Draft →" in DETAIL.</div>
+  </div>
+</div>
+
+<!-- ===== QUICK-WINS ===== -->
+<div id="tab-quickwins" class="tab-content">
+  <div class="filter-bar">
+    <label>Limit <input type="number" id="qw_limit" value="20" min="1" max="200" style="width:54px"></label>
+    <button onclick="loadQuickwins()">Refresh</button>
+    <span style="font-size:11px;color:#5a6374">warren_feasible + MED/HIGH confidence · sorted by score÷effort</span>
+  </div>
+  <div class="panel overflow-x">
+    <table id="qwTable">
+      <thead><tr>
+        <th style="width:36px">ID</th><th>Title</th><th>Category</th>
+        <th style="width:44px">Score</th><th style="width:70px">Effort</th>
+        <th style="width:42px">Conf</th><th style="width:64px">Price</th>
+        <th style="width:44px">Days</th><th style="width:56px">Score/hr</th>
+      </tr></thead>
+      <tbody><tr><td colspan="9" class="empty-msg">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== SOURCES ===== -->
+<div id="tab-sources" class="tab-content">
+  <div class="filter-bar">
+    <label>Category <input type="text" id="s_category" style="width:100px" placeholder="WEB_APP…"></label>
+    <label>Region <input type="text" id="s_region" style="width:70px" placeholder="global…"></label>
+    <label><input type="checkbox" id="s_newcomer"> Newcomer-friendly only</label>
+    <button onclick="loadSources()">Filter</button>
+    <button onclick="clearSourceFilters()">Clear</button>
+  </div>
+  <div class="panel overflow-x">
+    <table id="srcTable">
+      <thead><tr>
+        <th>Name</th><th style="width:60px">Region</th>
+        <th style="width:50px">Vetted</th><th style="width:58px">New-OK</th>
+        <th>Categories</th><th>Fee Notes</th>
+      </tr></thead>
+      <tbody><tr><td colspan="6" class="empty-msg">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== SETTINGS (tuner) ===== -->
+<div id="tab-settings" class="tab-content">
+  <div class="filter-bar">
+    <button class="primary" onclick="rescore()" title="Re-score all leads with current params">&#9654; Re-score Preview</button>
+    <button class="save-btn" onclick="saveConfig()">&#128190; Save to TOML</button>
+    <select id="presetSelect"><option value="">— load preset —</option></select>
+    <button onclick="loadPreset()">Load</button>
+    <button onclick="savePreset()">Save As…</button>
+    <label style="font-size:11px;color:#6a7482">auto-rescore <input type="checkbox" id="autoRescore" checked></label>
   </div>
 
-  <!-- RIGHT: markers -->
-  <div>
-    <div id="noLeads" class="panel">
-      No leads in database yet.<br>Add leads with <code>freelance-os lead add-text</code>, then score with <code>freelance-os lead score --all-new</code>.
+  <div style="display:grid;grid-template-columns:360px 1fr;gap:10px;align-items:start">
+    <div>
+      <div class="panel"><h2>Decision Thresholds</h2><div id="thresholdsPanel"></div></div>
+      <div class="panel">
+        <h2>Component Weights &nbsp;<span id="weightSum" class="weight-sum-ok">100</span></h2>
+        <p style="font-size:10px;color:#5a6374;margin-bottom:4px">Target = 100. Each slider 0–50.</p>
+        <div id="weightsPanel"></div>
+      </div>
+      <div class="panel"><h2>Risk Penalties</h2><div id="penaltiesPanel"></div></div>
+      <div class="panel"><h2>Pricing Parameters</h2><div id="pricingPanel"></div></div>
     </div>
-    <div id="markersPanel">
-      <div class="panel">
-        <h2>Aggregate Markers</h2>
-        <div class="marker-grid">
-          <div>
-            <h3>Stats (before → after)</h3>
-            <table id="statsTable">
-              <thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Δ</th></tr></thead>
-              <tbody></tbody>
-            </table>
-            <h3>Decision Distribution</h3>
-            <table id="distTable">
-              <thead><tr><th>Bucket</th><th>Before</th><th>After</th><th>Δ</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div>
-            <h3>Calibration — Win Rate by Decision Bucket</h3>
-            <p style="font-size:10px;color:#5a6374;margin-bottom:4px">Do DRAFT_NOW leads actually win? Requires recorded outcomes.</p>
-            <table id="calTable">
-              <thead><tr><th>Decision</th><th>Outcomes</th><th>Win% Before</th><th>Win% After</th></tr></thead>
-              <tbody></tbody>
-            </table>
-            <h3>Top Reason Codes (new scoring)</h3>
-            <table id="codesTable">
-              <thead><tr><th>Code</th><th>Count</th></tr></thead>
-              <tbody></tbody>
-            </table>
+    <div>
+      <div id="noLeads" class="panel">No leads yet. Add with <code>freelance-os lead add-text</code>, score with <code>freelance-os lead score --all-new</code>.</div>
+      <div id="markersPanel" style="display:none">
+        <div class="panel">
+          <h2>Aggregate Markers</h2>
+          <div class="marker-grid">
+            <div>
+              <h3>Stats (before → after)</h3>
+              <table id="statsTable"><thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Δ</th></tr></thead><tbody></tbody></table>
+              <h3>Decision Distribution</h3>
+              <table id="distTable"><thead><tr><th>Bucket</th><th>Before</th><th>After</th><th>Δ</th></tr></thead><tbody></tbody></table>
+            </div>
+            <div>
+              <h3>Calibration — Win Rate</h3>
+              <p style="font-size:10px;color:#5a6374;margin-bottom:4px">Requires recorded outcomes.</p>
+              <table id="calTable"><thead><tr><th>Decision</th><th>Outcomes</th><th>Win% Before</th><th>Win% After</th></tr></thead><tbody></tbody></table>
+              <h3>Top Reason Codes</h3>
+              <table id="codesTable"><thead><tr><th>Code</th><th>Count</th></tr></thead><tbody></tbody></table>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="panel">
-        <h2>Decision Changes — <span id="changedCount">0</span> leads flipped</h2>
-        <div class="overflow-x">
-        <table id="changesTable">
-          <thead><tr><th>ID</th><th>Title</th><th>Old</th><th>New</th><th>Δ Score</th><th>Outcome</th></tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="panel">
+          <h2>Decision Changes — <span id="changedCount">0</span> leads flipped</h2>
+          <div class="overflow-x">
+          <table id="changesTable"><thead><tr><th>ID</th><th>Title</th><th>Old</th><th>New</th><th>Δ Score</th><th>Outcome</th></tr></thead><tbody></tbody></table>
+          </div>
         </div>
-      </div>
-
-      <div class="panel">
-        <h2>All Leads — per-lead old vs new</h2>
-        <div class="overflow-x">
-        <table id="leadsTable">
-          <thead><tr>
-            <th>ID</th><th>Title</th>
-            <th>Old Score</th><th>New Score</th><th>Δ</th>
-            <th>Old Decision</th><th>New Decision</th><th>Changed?</th>
-            <th>Outcome</th><th>Reason Codes</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="panel">
+          <h2>All Leads — old vs new</h2>
+          <div class="overflow-x">
+          <table id="leadsTable"><thead><tr>
+            <th>ID</th><th>Title</th><th>Old</th><th>New</th><th>Δ</th>
+            <th>Old Decision</th><th>New Decision</th><th>Flip?</th><th>Outcome</th><th>Reason Codes</th>
+          </tr></thead><tbody></tbody></table>
+          </div>
         </div>
       </div>
     </div>
@@ -142,12 +249,451 @@ code{background:#2e3440;padding:1px 4px;border-radius:2px;font-size:11px}
 
 <script>
 "use strict";
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
 let currentConfig = {};
 let rescoreTimer = null;
+let selectedLeadId = null;
+let detailData = null;
+let debounceTimer = null;
+let settingsLoaded = false;
+
+// ---------------------------------------------------------------------------
+// Tab management
+// ---------------------------------------------------------------------------
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    if (el.getAttribute('data-tab') === name) el.classList.add('active');
+  });
+  if (name === 'board') loadBoard();
+  else if (name === 'quickwins') loadQuickwins();
+  else if (name === 'sources') loadSources();
+  else if (name === 'settings') { if (!settingsLoaded) { settingsLoaded = true; initSettings(); } }
+  else if (name === 'detail' && !detailData) setStatus('No lead selected — click a row in BOARD');
+  else if (name === 'offers') renderOffers();
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
 
 function badge(d) {
-  const map = {DRAFT_NOW:'bd',WATCH:'bw',MAYBE:'bm',REJECT:'br'};
+  const map = {DRAFT_NOW:'bd', WATCH:'bw', MAYBE:'bm', REJECT:'br'};
   return d ? `<span class="badge ${map[d]||'br'}">${d}</span>` : '';
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtBudget(l) {
+  if (l.budget_min != null || l.budget_max != null) return `$${l.budget_min||'?'}–$${l.budget_max||'?'}`;
+  if (l.hourly_min != null || l.hourly_max != null) return `$${l.hourly_min||'?'}–$${l.hourly_max||'?'}/hr`;
+  return '—';
+}
+
+function debounceLoad() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(loadBoard, 400);
+}
+
+// ---------------------------------------------------------------------------
+// BOARD tab
+// ---------------------------------------------------------------------------
+async function loadBoard() {
+  const params = new URLSearchParams();
+  const gv = id => (document.getElementById(id)||{}).value||'';
+  const gc = id => (document.getElementById(id)||{}).checked;
+  if (gv('f_category')) params.set('category', gv('f_category'));
+  if (gv('f_source').trim()) params.set('source', gv('f_source').trim());
+  if (gv('f_status')) params.set('status', gv('f_status'));
+  if (gv('f_decision')) params.set('decision', gv('f_decision'));
+  if (gv('f_min_score').trim()) params.set('min_score', gv('f_min_score'));
+  const wf = gv('f_warren_feasible');
+  if (wf === 'true') params.set('warren_feasible', 'true');
+  else if (wf === 'false') params.set('warren_feasible', 'false');
+  if (gc('f_quickwins')) params.set('quickwins_only', 'true');
+  params.set('sort_by', gv('f_sort_by') || 'id');
+  params.set('order', gv('f_order') || 'desc');
+
+  setStatus('Loading leads…');
+  try {
+    const resp = await fetch('/api/leads?' + params);
+    if (!resp.ok) { setStatus('Error loading leads'); return; }
+    const leads = await resp.json();
+    renderBoard(leads);
+    setStatus(`${leads.length} lead(s) loaded`);
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+function renderBoard(leads) {
+  const tbody = document.querySelector('#boardTable tbody');
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-msg">No leads match filters. Add leads with <code>freelance-os lead add-text</code></td></tr>';
+    return;
+  }
+  tbody.innerHTML = leads.map(l => {
+    const effort = l.effort_hours_low != null ? `${l.effort_hours_low}–${l.effort_hours_high}h` : '—';
+    const wf = l.warren_feasible != null ? (l.warren_feasible ? 'Y' : 'N') : '—';
+    const price = l.suggested_price != null ? `$${Math.round(l.suggested_price)}` : '—';
+    const sel = l.id === selectedLeadId ? ' selected' : '';
+    return `<tr class="${sel}" onclick="selectLead(${l.id})" style="cursor:pointer" title="Click to view detail">
+      <td>${l.id}</td>
+      <td style="max-width:260px" title="${escHtml(l.title)}">${escHtml((l.title||'').substring(0,45))}</td>
+      <td>${escHtml(l.category)}</td>
+      <td>${escHtml(l.source)}</td>
+      <td><b>${l.lead_score != null ? l.lead_score : '—'}</b></td>
+      <td>${badge(l.decision)}</td>
+      <td>${effort}</td>
+      <td>${l.feasibility_confidence||'—'}</td>
+      <td style="color:${wf==='Y'?'#a3be8c':wf==='N'?'#bf616a':'#6a7482'}">${wf}</td>
+      <td>${price}</td>
+      <td>${l.suggested_turnaround_days != null ? l.suggested_turnaround_days+'d' : '—'}</td>
+      <td style="color:#88c0d0;font-size:11px">${escHtml(l.status||'')}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------------------------------------------------------------------------
+// DETAIL tab
+// ---------------------------------------------------------------------------
+async function selectLead(id) {
+  selectedLeadId = id;
+  switchTab('detail');
+  setStatus(`Loading lead #${id}…`);
+  try {
+    const resp = await fetch(`/api/leads/${id}`);
+    if (!resp.ok) { setStatus(`Error loading lead #${id}`); return; }
+    detailData = await resp.json();
+    renderDetail(detailData);
+    setStatus(`Lead #${id} loaded`);
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+async function refreshDetail() {
+  if (!selectedLeadId) return;
+  const resp = await fetch(`/api/leads/${selectedLeadId}`);
+  if (resp.ok) {
+    detailData = await resp.json();
+    renderDetail(detailData);
+    renderOffers();
+  }
+}
+
+function renderDetail(lead) {
+  const el = document.getElementById('detailContent');
+  if (!el) return;
+
+  const effort = lead.effort_hours_low != null ? `${lead.effort_hours_low}–${lead.effort_hours_high}h` : '—';
+  const wf = lead.warren_feasible != null ? (lead.warren_feasible ? '<span style="color:#a3be8c">YES</span>' : '<span style="color:#bf616a">NO</span>') : '—';
+  const price = lead.suggested_price != null ? `$${Math.round(lead.suggested_price)}` : '—';
+  const turn = lead.suggested_turnaround_days != null ? `${lead.suggested_turnaround_days}d` : '—';
+  const reasons = (lead.reason_codes||[]).map(r => `<code>${escHtml(r)}</code>`).join(' ');
+  const draftSection = lead.draft ? renderDraftBlock(lead.draft) : `<p style="color:#6a7482;font-style:italic">No draft yet — click "Draft Proposal" above.</p>`;
+
+  const statusOptions = ['NEW','SCORED','DRAFTED','APPROVED_TO_APPLY','APPLIED_MANUALLY','INTERVIEW','WON','LOST','REJECTED','ARCHIVED']
+    .map(s => `<option${s===lead.status?' selected':''}>${s}</option>`).join('');
+
+  el.innerHTML = `
+<div class="detail-grid">
+  <div class="panel">
+    <h2>Lead #${lead.id}</h2>
+    <table class="kv-table">
+      <tr><td>Title</td><td colspan="3" style="max-width:300px;white-space:normal">${escHtml(lead.title)}</td></tr>
+      <tr><td>Source</td><td>${escHtml(lead.source)}</td><td>Category</td><td>${escHtml(lead.category)}</td></tr>
+      <tr><td>Status</td><td><b style="color:#88c0d0">${escHtml(lead.status||'')}</b></td><td>Decision</td><td>${badge(lead.decision)}</td></tr>
+      <tr><td>Score</td><td><b>${lead.lead_score != null ? lead.lead_score : '—'}</b></td><td>Risk</td><td>${lead.risk_score != null ? lead.risk_score : '—'}</td></tr>
+      <tr><td>Budget</td><td>${fmtBudget(lead)}</td><td>Payment</td><td>${lead.client_payment_verified ? '<span style="color:#a3be8c">verified</span>' : '<span style="color:#6a7482">unverified</span>'}</td></tr>
+      <tr><td>Client</td><td>${escHtml(lead.client_name||'—')}</td><td>Rating</td><td>${lead.client_rating != null ? lead.client_rating : '—'}</td></tr>
+      <tr><td>Imported</td><td colspan="3">${(lead.imported_at||'').substring(0,16)}</td></tr>
+    </table>
+    <div style="margin-top:6px;font-size:11px"><span style="color:#5a6374">Reasons: </span>${reasons||'<span style="color:#5a6374">none</span>'}</div>
+  </div>
+  <div class="panel">
+    <h2>Feasibility</h2>
+    <table class="kv-table">
+      <tr><td>Effort</td><td>${effort}</td><td>Confidence</td><td>${lead.feasibility_confidence||'—'}</td></tr>
+      <tr><td>Warren OK</td><td>${wf}</td><td>Price</td><td>${price}</td></tr>
+      <tr><td>Turnaround</td><td>${turn}</td><td></td><td></td></tr>
+    </table>
+    <div style="margin-top:8px">
+      <h2>Actions</h2>
+      <div class="action-bar">
+        <button onclick="doAction('score')" title="Score with current rules">Score</button>
+        <button onclick="doAction('estimate')" title="Run feasibility estimator">Estimate</button>
+        <button onclick="doAction('draft')" title="Generate proposal draft">Draft Proposal</button>
+        <button onclick="doAction('validate')" title="Validate latest draft">Validate</button>
+        <button class="primary" onclick="switchTab('offers')" title="Edit the proposal draft">Edit Draft →</button>
+      </div>
+      <div class="action-bar" style="margin-top:6px">
+        <span style="font-size:11px;color:#6a7482">Status:</span>
+        <select id="newStatusSel">${statusOptions}</select>
+        <button onclick="doSetStatus()">Set Status</button>
+      </div>
+      <div id="actionResult" style="margin-top:6px;font-size:11px;color:#a3be8c;white-space:pre-wrap"></div>
+    </div>
+  </div>
+</div>
+<div class="panel">
+  <h2>Proposal Draft</h2>
+  ${draftSection}
+</div>
+<div class="panel">
+  <h2>Description</h2>
+  <pre style="max-height:200px;overflow-y:auto;color:#b8c0cc;font-size:11px">${escHtml(lead.description||'(no description)')}</pre>
+</div>`;
+}
+
+function renderDraftBlock(draft) {
+  const val = draft.validator_flags;
+  let valBadge = '<span style="color:#6a7482">not validated</span>';
+  let valReasons = '';
+  if (val) {
+    const cls = `val-${(val.status||'').toLowerCase()}`;
+    valBadge = `<span class="${cls}">${escHtml(val.status)}</span>`;
+    valReasons = (val.reasons||[]).map(r => `<div style="font-size:11px;margin-top:2px;color:#b8c0cc">• ${escHtml(r)}</div>`).join('');
+  }
+  return `<div style="margin-bottom:6px;font-size:11px">
+    <span style="color:#5a6374">v${draft.version} · ${(draft.created_at||'').substring(0,16)}</span>
+    &nbsp;|&nbsp; Validation: ${valBadge}
+    ${valReasons}
+  </div>
+  <div style="font-size:11px;color:#5a6374;margin-bottom:4px">${escHtml(draft.technical_diagnosis||'')}</div>
+  <pre style="max-height:220px;overflow-y:auto;font-size:11px;color:#d8dee9;border:1px solid #3b4252;padding:4px">${escHtml(draft.draft_text||'')}</pre>
+  ${draft.price_recommendation ? `<div style="margin-top:4px;font-size:11px;color:#a3be8c">${escHtml(draft.price_recommendation)}</div>` : ''}`;
+}
+
+async function doAction(action) {
+  if (!selectedLeadId) { setStatus('No lead selected'); return; }
+  setStatus(`Running ${action}…`);
+  const arEl = document.getElementById('actionResult');
+  if (arEl) arEl.textContent = '';
+  try {
+    const resp = await fetch(`/api/leads/${selectedLeadId}/action`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action, params: {}})
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      setStatus(`Error: ${err.detail || resp.statusText}`);
+      return;
+    }
+    const data = await resp.json();
+    setStatus(`${action} complete`);
+    if (arEl) {
+      const r = data.result || data;
+      arEl.textContent = JSON.stringify(r, null, 2).substring(0, 400);
+    }
+    await refreshDetail();
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+async function doSetStatus() {
+  if (!selectedLeadId) return;
+  const status = (document.getElementById('newStatusSel')||{}).value;
+  if (!status) return;
+  setStatus(`Setting status to ${status}…`);
+  try {
+    const resp = await fetch(`/api/leads/${selectedLeadId}/action`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'status', params: {status}})
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      setStatus(`Error: ${err.detail || resp.statusText}`);
+      return;
+    }
+    setStatus(`Status → ${status}`);
+    await refreshDetail();
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+// ---------------------------------------------------------------------------
+// OFFERS tab
+// ---------------------------------------------------------------------------
+function renderOffers() {
+  const el = document.getElementById('offersContent');
+  if (!el) return;
+  if (!selectedLeadId || !detailData) {
+    el.innerHTML = '<div class="panel empty-msg">No lead selected. Go to BOARD and click a row.</div>';
+    return;
+  }
+  const draft = detailData.draft;
+  if (!draft) {
+    el.innerHTML = `<div class="panel empty-msg">No draft for Lead #${selectedLeadId}.<br>Go to DETAIL and click <b>Draft Proposal</b>.</div>`;
+    return;
+  }
+
+  const val = draft.validator_flags;
+  let valHtml = '<span style="color:#6a7482">not validated</span>';
+  let valDetails = '';
+  if (val) {
+    const cls = `val-${(val.status||'').toLowerCase()}`;
+    valHtml = `<span class="${cls}">${escHtml(val.status)}</span>`;
+    valDetails = (val.reasons||[]).map(r => `<div style="margin-top:2px;font-size:11px">• ${escHtml(r)}</div>`).join('');
+  }
+
+  const portfolioHtml = (draft.portfolio_matches||[]).length
+    ? (draft.portfolio_matches||[]).map(m => `<code style="margin-right:8px">${escHtml(m)}</code>`).join('')
+    : '<span style="color:#6a7482">none</span>';
+  const questionsHtml = (draft.clarifying_questions||[]).length
+    ? (draft.clarifying_questions||[]).map(q => `<div style="margin-bottom:4px">• ${escHtml(q)}</div>`).join('')
+    : '<span style="color:#6a7482">none</span>';
+
+  el.innerHTML = `
+<div class="panel">
+  <h2>Lead #${selectedLeadId} — ${escHtml((detailData.title||'').substring(0,50))} — Offer Workspace</h2>
+  <div style="font-size:11px;color:#5a6374;margin-bottom:4px">
+    ${escHtml(draft.technical_diagnosis||'')}
+    ${draft.price_recommendation ? ' | <span style="color:#a3be8c">'+escHtml(draft.price_recommendation)+'</span>' : ''}
+  </div>
+  <div style="margin-bottom:8px">
+    <b style="font-size:11px">Validation:</b> ${valHtml}
+    ${valDetails}
+  </div>
+  <div class="action-bar" style="margin-bottom:8px">
+    <button class="save-btn" onclick="saveDraft()" title="Save edited text to DB">Save Draft</button>
+    <button onclick="doAction('validate')" title="Run validator on current saved text">Re-validate</button>
+    <span style="font-size:10px;color:#5a6374;margin-left:8px">DRAFT ONLY — copy and send manually, never auto-submit</span>
+  </div>
+  <textarea id="draftEditor" style="width:100%;height:320px">${escHtml(draft.draft_text||'')}</textarea>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+  <div class="panel">
+    <h2>Portfolio Matches</h2>
+    ${portfolioHtml}
+  </div>
+  <div class="panel">
+    <h2>Clarifying Questions</h2>
+    ${questionsHtml}
+  </div>
+</div>`;
+}
+
+async function saveDraft() {
+  if (!selectedLeadId) return;
+  const text = (document.getElementById('draftEditor')||{}).value || '';
+  setStatus('Saving draft…');
+  try {
+    const resp = await fetch(`/api/leads/${selectedLeadId}/action`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'save_draft', params: {draft_text: text}})
+    });
+    if (!resp.ok) { setStatus('Error saving draft'); return; }
+    setStatus('Draft saved');
+    const r = await fetch(`/api/leads/${selectedLeadId}`);
+    if (r.ok) detailData = await r.json();
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+// ---------------------------------------------------------------------------
+// QUICK-WINS tab
+// ---------------------------------------------------------------------------
+async function loadQuickwins() {
+  const limit = parseInt((document.getElementById('qw_limit')||{}).value || '20', 10);
+  setStatus('Loading quick-wins…');
+  try {
+    const resp = await fetch(`/api/quickwins?limit=${limit}`);
+    if (!resp.ok) { setStatus('Error loading quick-wins'); return; }
+    const leads = await resp.json();
+    renderQuickwins(leads);
+    setStatus(`${leads.length} quick-win(s) — score÷effort sorted`);
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+function renderQuickwins(leads) {
+  const tbody = document.querySelector('#qwTable tbody');
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-msg">No quick-wins. Run <code>freelance-os lead estimate --all</code> to populate feasibility data.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = leads.map(l => {
+    const effort = `${l.effort_hours_low}–${l.effort_hours_high}h`;
+    const price = l.suggested_price != null ? `$${Math.round(l.suggested_price)}` : '—';
+    const spe = l.effort_hours_high ? ((l.lead_score||50) / l.effort_hours_high).toFixed(1) : '—';
+    return `<tr onclick="selectLead(${l.id})" style="cursor:pointer" title="Click for detail">
+      <td>${l.id}</td>
+      <td title="${escHtml(l.title)}">${escHtml((l.title||'').substring(0,44))}</td>
+      <td>${escHtml(l.category)}</td>
+      <td><b>${l.lead_score != null ? l.lead_score : '—'}</b></td>
+      <td>${effort}</td>
+      <td>${l.feasibility_confidence}</td>
+      <td>${price}</td>
+      <td>${l.suggested_turnaround_days != null ? l.suggested_turnaround_days+'d' : '—'}</td>
+      <td style="color:#ebcb8b">${spe}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------------------------------------------------------------------------
+// SOURCES tab
+// ---------------------------------------------------------------------------
+async function loadSources() {
+  const params = new URLSearchParams();
+  const cat = ((document.getElementById('s_category')||{}).value||'').trim();
+  const region = ((document.getElementById('s_region')||{}).value||'').trim();
+  const newcomer = (document.getElementById('s_newcomer')||{}).checked;
+  if (cat) params.set('category', cat);
+  if (region) params.set('region', region);
+  if (newcomer) params.set('newcomer', 'true');
+
+  setStatus('Loading sources…');
+  try {
+    const resp = await fetch('/api/sources?' + params);
+    if (!resp.ok) { setStatus('Error loading sources'); return; }
+    const sources = await resp.json();
+    renderSources(sources);
+    setStatus(`${sources.length} platform(s)`);
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+function clearSourceFilters() {
+  ['s_category','s_region'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  const nc = document.getElementById('s_newcomer'); if(nc) nc.checked = false;
+  loadSources();
+}
+
+function renderSources(sources) {
+  const tbody = document.querySelector('#srcTable tbody');
+  if (!sources.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No sources. Run <code>freelance-os init</code> to create config/sources.yaml.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sources.map(s => `<tr>
+    <td><b>${escHtml(s.name||'')}</b></td>
+    <td>${escHtml(s.region||'')}</td>
+    <td style="color:${s.vetted?'#a3be8c':'#6a7482'}">${s.vetted ? 'yes' : 'no'}</td>
+    <td style="color:${s.newcomer_friendly?'#a3be8c':'#6a7482'}">${s.newcomer_friendly ? 'yes' : 'no'}</td>
+    <td style="font-size:11px;white-space:normal">${(s.categories||[]).join(', ')}</td>
+    <td style="font-size:11px;color:#6a7482;white-space:normal">${escHtml(s.fee_notes||'')}</td>
+  </tr>`).join('');
+}
+
+// ---------------------------------------------------------------------------
+// SETTINGS tab — tuner (scoring rules preview & save)
+// ---------------------------------------------------------------------------
+async function initSettings() {
+  try {
+    const resp = await fetch('/api/config');
+    if (!resp.ok) { setStatus('Error loading config'); return; }
+    currentConfig = await resp.json();
+    renderParams(currentConfig);
+    await loadPresets();
+    if ((document.getElementById('autoRescore')||{}).checked) await rescore();
+  } catch(e) { setStatus('Error: ' + e.message); }
 }
 
 function paramRow(key, val, min, max, step, label, unit) {
@@ -157,7 +703,7 @@ function paramRow(key, val, min, max, step, label, unit) {
     <label for="${id}_n">${label}${u}</label>
     <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"
       oninput="syncNum('${id}');scheduleRescore()">
-    <input type="number" id="${id}_n" min="${min}" max="${max}" step="${step}" value="${val}"
+    <input type="number" class="param-num" id="${id}_n" min="${min}" max="${max}" step="${step}" value="${val}"
       oninput="syncRange('${id}');scheduleRescore()">
   </div>`;
 }
@@ -193,29 +739,27 @@ function updateWeightSum() {
 function renderParams(cfg) {
   const t = cfg.thresholds||{};
   document.getElementById('thresholdsPanel').innerHTML =
-    paramRow('thresholds__draft_now_min', t.draft_now_min??80, 50, 100, 1, 'DRAFT_NOW minimum', 'score')
-   +paramRow('thresholds__watch_min',     t.watch_min??65,     0, 100, 1, 'WATCH minimum', 'score')
-   +paramRow('thresholds__maybe_min',     t.maybe_min??50,     0, 100, 1, 'MAYBE minimum', 'score');
+    paramRow('thresholds__draft_now_min', t.draft_now_min??80, 50,100,1,'DRAFT_NOW minimum','score')
+   +paramRow('thresholds__watch_min',     t.watch_min??65,     0, 100,1,'WATCH minimum','score')
+   +paramRow('thresholds__maybe_min',     t.maybe_min??50,     0, 100,1,'MAYBE minimum','score');
 
   const w = cfg.weights||{};
   document.getElementById('weightsPanel').innerHTML = Object.entries(w)
-    .map(([k,v]) => paramRow('weights__'+k, v, 0, 50, 1, k.replace(/_/g,' '), 'pts'))
-    .join('');
+    .map(([k,v]) => paramRow('weights__'+k, v, 0,50,1, k.replace(/_/g,' '),'pts')).join('');
 
   const rp = cfg.risk_penalties||{};
   document.getElementById('penaltiesPanel').innerHTML = Object.entries(rp)
-    .map(([k,v]) => paramRow('penalties__'+k, v, 0, 50, 1, k.replace(/_/g,' '), 'pts'))
-    .join('');
+    .map(([k,v]) => paramRow('penalties__'+k, v, 0,50,1, k.replace(/_/g,' '),'pts')).join('');
 
   const p = cfg.pricing||{};
   document.getElementById('pricingPanel').innerHTML =
-    paramRow('pricing__target_hourly_rate',    p.target_hourly_rate??75,    10, 500,  5,    'Target hourly rate', '$')
-   +paramRow('pricing__minimum_project_value', p.minimum_project_value??300, 0, 10000,50,   'Minimum project value', '$')
-   +paramRow('pricing__risk_multiplier_low',   p.risk_multiplier_low??1.0,  0.5, 3,  0.05, 'Risk multiplier (low)', 'x')
-   +paramRow('pricing__risk_multiplier_medium',p.risk_multiplier_medium??1.25,0.5,3, 0.05, 'Risk multiplier (medium)', 'x')
-   +paramRow('pricing__risk_multiplier_high',  p.risk_multiplier_high??1.5, 0.5, 3,  0.05, 'Risk multiplier (high)', 'x')
-   +paramRow('pricing__rush_multiplier',       p.rush_multiplier??1.25,     1,   3,  0.05, 'Rush multiplier', 'x')
-   +paramRow('pricing__platform_fee_buffer',   p.platform_fee_buffer??0.10, 0,  0.5, 0.01, 'Platform fee buffer', 'frac');
+    paramRow('pricing__target_hourly_rate',    p.target_hourly_rate??75,   10,500,5,  'Target hourly rate','$')
+   +paramRow('pricing__minimum_project_value', p.minimum_project_value??300,0,10000,50,'Minimum project value','$')
+   +paramRow('pricing__risk_multiplier_low',   p.risk_multiplier_low??1.0,  0.5,3,0.05,'Risk mult (low)','x')
+   +paramRow('pricing__risk_multiplier_medium',p.risk_multiplier_medium??1.25,0.5,3,0.05,'Risk mult (medium)','x')
+   +paramRow('pricing__risk_multiplier_high',  p.risk_multiplier_high??1.5, 0.5,3,0.05,'Risk mult (high)','x')
+   +paramRow('pricing__rush_multiplier',       p.rush_multiplier??1.25,     1,3,0.05,'Rush multiplier','x')
+   +paramRow('pricing__platform_fee_buffer',   p.platform_fee_buffer??0.10, 0,0.5,0.01,'Platform fee buffer','frac');
 
   updateWeightSum();
 }
@@ -223,7 +767,7 @@ function renderParams(cfg) {
 function collectParams() {
   const params = {weights:{}, risk_penalties:{}, thresholds:{}, pricing:{}};
   document.querySelectorAll('[id^="p_"][id$="_n"]').forEach(el => {
-    const key = el.id.replace(/^p_/, '').replace(/_n$/, '');
+    const key = el.id.replace(/^p_/,'').replace(/_n$/,'');
     const [sect, ...rest] = key.split('__');
     const k = rest.join('__');
     const v = parseFloat(el.value);
@@ -235,7 +779,7 @@ function collectParams() {
 }
 
 function scheduleRescore() {
-  if (!document.getElementById('autoRescore').checked) return;
+  if (!(document.getElementById('autoRescore')||{}).checked) return;
   clearTimeout(rescoreTimer);
   rescoreTimer = setTimeout(rescore, 600);
 }
@@ -249,10 +793,10 @@ async function rescore() {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(params)
     });
-    if (!resp.ok) { setStatus('Error: ' + await resp.text()); return; }
+    if (!resp.ok) { setStatus('Error: '+await resp.text()); return; }
     const data = await resp.json();
     renderMarkers(data);
-    setStatus(`✓ ${data.leads.length} leads scored. ${data.markers.changed_decision_count} decisions changed.`);
+    setStatus(`Preview: ${data.leads.length} leads · ${data.markers.changed_decision_count} decision changes`);
   } catch(e) { setStatus('Error: '+e.message); }
 }
 
@@ -263,7 +807,6 @@ function renderMarkers(data) {
   document.getElementById('markersPanel').style.display = hasLeads ? '' : 'none';
   if (!hasLeads) return;
 
-  // Stats
   const statsBody = document.querySelector('#statsTable tbody');
   const d_avg = m.avg_score_after - m.avg_score_before;
   const d_med = m.median_score_after - m.median_score_before;
@@ -275,20 +818,14 @@ function renderMarkers(data) {
     <tr><td>Total leads</td><td colspan="3">${data.leads.length}</td></tr>
     <tr><td>Decision changes</td><td colspan="3" style="color:#ebcb8b"><b>${m.changed_decision_count}</b></td></tr>`;
 
-  // Distribution
   const decisions = ['DRAFT_NOW','WATCH','MAYBE','REJECT'];
-  const distBody = document.querySelector('#distTable tbody');
-  distBody.innerHTML = decisions.map(d => {
-    const b = m.distribution_before[d]||0;
-    const a = m.distribution_after[d]||0;
-    const dlt = a-b;
+  document.querySelector('#distTable tbody').innerHTML = decisions.map(d => {
+    const b = m.distribution_before[d]||0, a = m.distribution_after[d]||0, dlt=a-b;
     return `<tr><td>${badge(d)}</td><td>${b}</td><td>${a}</td>
             <td class="${dlt>0?'up':dlt<0?'dn':''}">${dlt>0?'+':''}${dlt}</td></tr>`;
   }).join('');
 
-  // Calibration
-  const calBody = document.querySelector('#calTable tbody');
-  calBody.innerHTML = decisions.map(d => {
+  document.querySelector('#calTable tbody').innerHTML = decisions.map(d => {
     const cnt = m.outcome_count_by_decision_before[d]||0;
     const wb = m.win_rate_by_decision_before[d];
     const wa = m.win_rate_by_decision_after[d];
@@ -297,36 +834,28 @@ function renderMarkers(data) {
             <td>${wa!=null?(wa*100).toFixed(0)+'%':'n/a'}</td></tr>`;
   }).join('');
 
-  // Top codes
-  const codesBody = document.querySelector('#codesTable tbody');
-  codesBody.innerHTML = (m.top_reason_codes||[]).map(([code,cnt]) =>
-    `<tr><td><code>${code}</code></td><td>${cnt}</td></tr>`).join('');
+  document.querySelector('#codesTable tbody').innerHTML = (m.top_reason_codes||[])
+    .map(([code,cnt]) => `<tr><td><code>${code}</code></td><td>${cnt}</td></tr>`).join('');
 
-  // Changed decisions
   document.getElementById('changedCount').textContent = m.changed_decision_count;
   const changed = data.leads.filter(l => l.decision_changed);
   document.querySelector('#changesTable tbody').innerHTML = changed.map(l => {
     const dlt = l.delta;
-    return `<tr><td>${l.id}</td><td title="${l.title}">${l.title.substring(0,35)}</td>
+    return `<tr><td>${l.id}</td><td title="${escHtml(l.title)}">${escHtml((l.title||'').substring(0,35))}</td>
             <td>${badge(l.old_decision)}</td><td>${badge(l.new_decision)}</td>
             <td class="${dlt>=0?'up':'dn'}">${dlt>=0?'+':''}${dlt}</td>
             <td style="font-size:10px">${l.outcome||''}</td></tr>`;
   }).join('');
 
-  // All leads
-  const leadsBody = document.querySelector('#leadsTable tbody');
-  leadsBody.innerHTML = data.leads.map(l => {
+  document.querySelector('#leadsTable tbody').innerHTML = data.leads.map(l => {
     const dlt = l.delta;
     const cls = l.decision_changed ? 'changed' : '';
-    const oldScoreStr = l.old_score !== null ? l.old_score : '<span style="color:#5a6374">unsco.</span>';
+    const oldScore = l.old_score !== null ? l.old_score : '<span style="color:#5a6374">unsco.</span>';
     return `<tr class="${cls}">
-      <td>${l.id}</td>
-      <td title="${l.title}">${l.title.substring(0,32)}</td>
-      <td>${oldScoreStr}</td>
-      <td><b>${l.new_score}</b></td>
+      <td>${l.id}</td><td title="${escHtml(l.title)}">${escHtml((l.title||'').substring(0,32))}</td>
+      <td>${oldScore}</td><td><b>${l.new_score}</b></td>
       <td class="${dlt>0?'up':dlt<0?'dn':''}">${dlt>0?'+':''}${dlt}</td>
-      <td>${badge(l.old_decision)}</td>
-      <td>${badge(l.new_decision)}</td>
+      <td>${badge(l.old_decision)}</td><td>${badge(l.new_decision)}</td>
       <td>${l.decision_changed?'<span style="color:#ebcb8b">&#9654;</span>':''}</td>
       <td style="font-size:10px">${l.outcome||''}</td>
       <td style="font-size:10px;color:#6a7482">${(l.reason_codes||[]).join(' ')}</td>
@@ -344,7 +873,7 @@ async function saveConfig() {
     });
     if (!resp.ok) { setStatus('Save error: '+await resp.text()); return; }
     const r = await resp.json();
-    setStatus(`✓ Saved → ${r.path}`);
+    setStatus(`Saved → ${r.path}`);
   } catch(e) { setStatus('Error: '+e.message); }
 }
 
@@ -354,22 +883,23 @@ async function loadPresets() {
     if (!resp.ok) return;
     const presets = await resp.json();
     const sel = document.getElementById('presetSelect');
+    if (!sel) return;
     sel.innerHTML = '<option value="">— load preset —</option>'
       + presets.map(p => `<option value="${p}">${p}</option>`).join('');
   } catch(_) {}
 }
 
 async function loadPreset() {
-  const name = document.getElementById('presetSelect').value;
+  const sel = document.getElementById('presetSelect');
+  const name = sel ? sel.value : '';
   if (!name) return;
   try {
     const resp = await fetch('/api/presets/'+encodeURIComponent(name));
     if (!resp.ok) { setStatus('Error loading preset'); return; }
-    const cfg = await resp.json();
-    currentConfig = cfg;
-    renderParams(cfg);
+    currentConfig = await resp.json();
+    renderParams(currentConfig);
     setStatus(`Preset "${name}" loaded`);
-    if (document.getElementById('autoRescore').checked) rescore();
+    if ((document.getElementById('autoRescore')||{}).checked) rescore();
   } catch(e) { setStatus('Error: '+e.message); }
 }
 
@@ -388,22 +918,10 @@ async function savePreset() {
   } catch(e) { setStatus('Error: '+e.message); }
 }
 
-function setStatus(msg) {
-  document.getElementById('statusMsg').textContent = msg;
-}
-
-async function init() {
-  try {
-    const resp = await fetch('/api/config');
-    if (!resp.ok) { setStatus('Error loading config'); return; }
-    currentConfig = await resp.json();
-    renderParams(currentConfig);
-    await loadPresets();
-    await rescore();
-  } catch(e) { setStatus('Error: '+e.message); }
-}
-
-init();
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+switchTab('board');
 </script>
 </body>
 </html>
