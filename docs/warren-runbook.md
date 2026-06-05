@@ -19,11 +19,30 @@ Warren fits that exactly: agents prepare branches; a human reviews and merges.
 - `WARREN_API_TOKEN` — required for authenticated endpoints (everything except
   liveness). **Never** print, commit, echo, or paste it.
 
-Set them in your Git Bash session (do not commit these lines):
+**You normally do NOT export the token by hand.** Every `scripts/wr-*.sh` sources
+`scripts/wr-env.sh`, which auto-loads `WARREN_API_TOKEN` from the Warren server
+checkout's `.env` if it isn't already set — so `bash scripts/wr-projects.sh` just
+works in a fresh shell. Resolution order:
+
+1. `WARREN_API_TOKEN` already in the env (left untouched)
+2. `$WARREN_ENV_FILE` (set this to override)
+3. `~/Documents/Coding/warren-kay/warren/.env`  <- canonical on this machine
+4. `~/.warren/.env`, then `~/warren/.env`
+
+If a script ever prints `WARREN_API_TOKEN is required`, the `.env` moved — point
+`WARREN_ENV_FILE` at the Warren checkout's `.env` and re-run (never echo it):
 
 ```bash
-export WARREN_BASE_URL="http://localhost:8080"
-export WARREN_API_TOKEN="...paste from the Warren UI..."   # never echo this
+export WARREN_ENV_FILE="/c/Users/you/path/to/warren/.env"   # only if auto-load fails
+```
+
+`wr-env.sh` strips CR + quotes (the Windows CRLF `.env` gotcha) and never prints
+the token. Manual override (e.g. a token from the Warren UI) still works — an
+already-set `WARREN_API_TOKEN` wins:
+
+```bash
+export WARREN_BASE_URL="http://localhost:8080"             # optional; this is the default
+export WARREN_API_TOKEN="...paste from the Warren UI..."    # only to override; never echo this
 ```
 
 > The `warren` / `wr` CLI is **not** on PATH on this machine — Warren runs as the
