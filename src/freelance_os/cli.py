@@ -926,9 +926,17 @@ def client_worktree(
 @outcome_app.command("add")
 def outcome_add(
     lead_id: int = typer.Option(..., "--lead", help="Lead ID"),
+    result: Optional[str] = typer.Option(None, "--result", help="WON/LOST/NO_RESPONSE/WITHDRAWN (skip interactive prompt)"),
+    rating: Optional[float] = typer.Option(None, "--rating", help="Client rating 0-5"),
+    on_time: Optional[bool] = typer.Option(None, "--on-time/--late", help="Delivered on time?"),
+    repeat: Optional[bool] = typer.Option(None, "--repeat/--no-repeat", help="Returning client?"),
+    review: Optional[str] = typer.Option(None, "--review", help="Client review text"),
+    platform: Optional[str] = typer.Option(None, "--platform", help="Platform/source override"),
+    delivered_at: Optional[str] = typer.Option(None, "--delivered-at", help="Delivery date (ISO: YYYY-MM-DD)"),
     config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
 ):
-    """Record the outcome for a lead interactively."""
+    """Record the outcome for a lead (interactive, or use flags to skip prompts)."""
+    from datetime import datetime as _dt
     from freelance_os.config import load_config, ConfigError
     from freelance_os.db import get_engine
     from freelance_os.models import Lead, Outcome, OutcomeResult
@@ -948,24 +956,42 @@ def outcome_add(
             raise typer.Exit(1)
 
     valid_results = [r.value for r in OutcomeResult]
-    console.print(f"Outcome result ({'/'.join(valid_results)}): ", end="")
-    result_str = input().strip().upper()
+
+    if result is not None:
+        result_str = result.strip().upper()
+    else:
+        console.print(f"Outcome result ({'/'.join(valid_results)}): ", end="")
+        result_str = input().strip().upper()
+
     try:
         result_val = OutcomeResult(result_str)
     except ValueError:
         console.print(f"[red]Invalid result. Valid: {', '.join(valid_results)}[/red]")
         raise typer.Exit(1)
 
-    console.print("Reason (optional): ", end="")
-    reason = input().strip() or None
-    console.print("Final budget (optional, number): ", end="")
-    budget_str = input().strip()
-    final_budget = float(budget_str) if budget_str else None
-    console.print("Hours spent (optional, number): ", end="")
-    hours_str = input().strip()
-    time_spent = float(hours_str) if hours_str else None
-    console.print("Lessons learned (optional): ", end="")
-    lessons = input().strip() or None
+    if result is None:
+        console.print("Reason (optional): ", end="")
+        reason = input().strip() or None
+        console.print("Final budget (optional, number): ", end="")
+        budget_str = input().strip()
+        final_budget = float(budget_str) if budget_str else None
+        console.print("Hours spent (optional, number): ", end="")
+        hours_str = input().strip()
+        time_spent = float(hours_str) if hours_str else None
+        console.print("Lessons learned (optional): ", end="")
+        lessons = input().strip() or None
+    else:
+        reason = None
+        final_budget = None
+        time_spent = None
+        lessons = None
+
+    delivered_dt = None
+    if delivered_at:
+        try:
+            delivered_dt = _dt.fromisoformat(delivered_at)
+        except ValueError:
+            console.print(f"[yellow]Warning: could not parse --delivered-at '{delivered_at}', ignoring.[/yellow]")
 
     with Session(engine) as session:
         outcome = Outcome(
@@ -975,6 +1001,12 @@ def outcome_add(
             final_budget=final_budget,
             time_spent_hours=time_spent,
             lessons=lessons,
+            rating=rating,
+            review_text=review,
+            on_time=on_time,
+            is_repeat_client=repeat,
+            platform=platform,
+            delivered_at=delivered_dt,
         )
         session.add(outcome)
         session.commit()
@@ -1276,6 +1308,150 @@ def quickwins(
         f"\n[dim]{len(leads)} quick-win(s) — warren_feasible + MED/HIGH confidence, "
         f"sorted by score/effort.[/dim]"
     )
+
+
+@app.command()
+def reputation(
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table or markdown"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Show reputation dashboard: win rate, ratings, earnings, per-platform breakdown."""
+    from freelance_os.config import load_config, ConfigError
+    from freelance_os.reports.reputation import aggregate_reputation
+    from rich.table import Table
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    data = aggregate_reputation(cfg)
+
+    def _pct(v: Optional[float]) -> str:
+        return f"{v * 100:.1f}%" if v is not None else "-"
+
+    def _flt(v: Optional[float], decimals: int = 2) -> str:
+        return f"{v:.{decimals}f}" if v is not None else "-"
+
+    def _usd(v: float) -> str:
+        return f"${v:,.0f}"
+
+    if format == "markdown":
+        lines = [
+            "# Reputation Dashboard",
+            "",
+            "## Overall",
+            "",
+            f"| Metric | Value |",
+            f"|--------|-------|",
+            f"| Applications | {data['total_applications']} |",
+            f"| Interviews | {data['interviews']} |",
+            f"| Wins | {data['wins']} |",
+            f"| Losses | {data['losses']} |",
+            f"| Win rate | {_pct(data['win_rate'])} |",
+            f"| Avg rating | {_flt(data['avg_rating'])} |",
+            f"| On-time % | {_pct(data['on_time_pct'])} |",
+            f"| Repeat clients | {data['repeat_client_count']} |",
+            f"| Total earnings | {_usd(data['total_earnings'])} |",
+            f"| Avg project value | {_flt(data['avg_project_value'], 0) if data['avg_project_value'] is not None else '-'} |",
+            "",
+        ]
+        if data["per_platform"]:
+            lines += [
+                "## Per Platform",
+                "",
+                "| Platform | Apps | Wins | Losses | Win% | Avg Rating | On-time% | Earnings |",
+                "|----------|------|------|--------|------|------------|----------|----------|",
+            ]
+            for p in data["per_platform"]:
+                lines.append(
+                    f"| {p['platform']} | {p['applications']} | {p['wins']} | {p['losses']}"
+                    f" | {_pct(p['win_rate'])} | {_flt(p['avg_rating'])} | {_pct(p['on_time_pct'])}"
+                    f" | {_usd(p['earnings'])} |"
+                )
+            lines.append("")
+        if data["momentum"]:
+            lines += [
+                "## Momentum (monthly)",
+                "",
+                "| Month | Wins | Losses | Win% | Earnings | Avg Rating |",
+                "|-------|------|--------|------|----------|------------|",
+            ]
+            for m in data["momentum"]:
+                lines.append(
+                    f"| {m['period']} | {m['wins']} | {m['losses']}"
+                    f" | {_pct(m['win_rate'])} | {_usd(m['earnings'])} | {_flt(m['avg_rating'])} |"
+                )
+        console.print("\n".join(lines))
+        return
+
+    # Table format
+    console.print("\n[bold cyan]Reputation Dashboard[/bold cyan]\n")
+
+    overall = Table(title="Overall", box=rich_box.ASCII, show_lines=False)
+    overall.add_column("Metric", style="cyan", width=22)
+    overall.add_column("Value", style="white")
+    overall.add_row("Applications", str(data["total_applications"]))
+    overall.add_row("Interviews", str(data["interviews"]))
+    overall.add_row("Wins", str(data["wins"]))
+    overall.add_row("Losses", str(data["losses"]))
+    overall.add_row("Win rate", _pct(data["win_rate"]))
+    overall.add_row("Avg rating", _flt(data["avg_rating"]))
+    overall.add_row("On-time %", _pct(data["on_time_pct"]))
+    overall.add_row("Repeat clients", str(data["repeat_client_count"]))
+    overall.add_row("Total earnings", _usd(data["total_earnings"]))
+    overall.add_row(
+        "Avg project value",
+        (_usd(data["avg_project_value"]) if data["avg_project_value"] is not None else "-"),
+    )
+    console.print(overall)
+
+    if data["per_platform"]:
+        plat_table = Table(title="Per Platform", box=rich_box.ASCII, show_lines=False)
+        plat_table.add_column("Platform", style="yellow", width=14)
+        plat_table.add_column("Apps", width=5)
+        plat_table.add_column("Wins", width=5)
+        plat_table.add_column("Losses", width=7)
+        plat_table.add_column("Win%", width=7)
+        plat_table.add_column("Avg Rtg", width=8)
+        plat_table.add_column("On-time%", width=9)
+        plat_table.add_column("Earnings", width=10)
+        for p in data["per_platform"]:
+            plat_table.add_row(
+                p["platform"],
+                str(p["applications"]),
+                str(p["wins"]),
+                str(p["losses"]),
+                _pct(p["win_rate"]),
+                _flt(p["avg_rating"]),
+                _pct(p["on_time_pct"]),
+                _usd(p["earnings"]),
+            )
+        console.print(plat_table)
+    else:
+        console.print("[dim]No per-platform data yet.[/dim]")
+
+    if data["momentum"]:
+        mom_table = Table(title="Momentum (monthly)", box=rich_box.ASCII, show_lines=False)
+        mom_table.add_column("Month", style="cyan", width=9)
+        mom_table.add_column("Wins", width=5)
+        mom_table.add_column("Losses", width=7)
+        mom_table.add_column("Win%", width=7)
+        mom_table.add_column("Earnings", width=10)
+        mom_table.add_column("Avg Rtg", width=8)
+        for m in data["momentum"]:
+            mom_table.add_row(
+                m["period"],
+                str(m["wins"]),
+                str(m["losses"]),
+                _pct(m["win_rate"]),
+                _usd(m["earnings"]),
+                _flt(m["avg_rating"]),
+            )
+        console.print(mom_table)
+    else:
+        console.print("[dim]No momentum data yet.[/dim]")
 
 
 @report_app.command("weekly")

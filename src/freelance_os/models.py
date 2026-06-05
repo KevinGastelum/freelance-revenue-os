@@ -151,6 +151,13 @@ class Outcome(SQLModel, table=True):
     profit_estimate: Optional[float] = None
     lessons: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # Reputation fields (all nullable — safe migration for existing DBs)
+    rating: Optional[float] = None          # client rating 0-5
+    review_text: Optional[str] = None       # client review text
+    on_time: Optional[bool] = None          # delivered on time?
+    is_repeat_client: Optional[bool] = None # returning client?
+    platform: Optional[str] = None          # platform/source override
+    delivered_at: Optional[datetime] = None  # delivery timestamp
 
 
 def encode_json(value: object) -> Optional[str]:
