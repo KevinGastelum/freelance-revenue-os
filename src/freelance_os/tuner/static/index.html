@@ -71,6 +71,7 @@ input[type=number].param-num{width:64px}
   <button class="tab-btn" data-tab="offers" onclick="switchTab('offers')">OFFERS</button>
   <button class="tab-btn" data-tab="quickwins" onclick="switchTab('quickwins')">QUICK-WINS</button>
   <button class="tab-btn" data-tab="sources" onclick="switchTab('sources')">SOURCES</button>
+  <button class="tab-btn" data-tab="reputation" onclick="switchTab('reputation')">REPUTATION</button>
   <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">SETTINGS</button>
   <span id="statusMsg"></span>
 </div>
@@ -184,6 +185,17 @@ input[type=number].param-num{width:64px}
   </div>
 </div>
 
+<!-- ===== REPUTATION ===== -->
+<div id="tab-reputation" class="tab-content">
+  <div class="filter-bar">
+    <button onclick="loadReputation()">Refresh</button>
+    <span style="font-size:11px;color:#5a6374">Track win rate, ratings, earnings and momentum across platforms.</span>
+  </div>
+  <div id="repContent">
+    <div class="panel empty-msg">Loading reputation data...</div>
+  </div>
+</div>
+
 <!-- ===== SETTINGS (tuner) ===== -->
 <div id="tab-settings" class="tab-content">
   <div class="filter-bar">
@@ -275,6 +287,7 @@ function switchTab(name) {
   else if (name === 'quickwins') loadQuickwins();
   else if (name === 'sources') loadSources();
   else if (name === 'settings') { if (!settingsLoaded) { settingsLoaded = true; initSettings(); } }
+  else if (name === 'reputation') loadReputation();
   else if (name === 'detail' && !detailData) setStatus('No lead selected — click a row in BOARD');
   else if (name === 'offers') renderOffers();
 }
@@ -916,6 +929,111 @@ async function savePreset() {
     setStatus(`Preset "${name.trim()}" saved`);
     await loadPresets();
   } catch(e) { setStatus('Error: '+e.message); }
+}
+
+// ---------------------------------------------------------------------------
+// REPUTATION tab
+// ---------------------------------------------------------------------------
+async function loadReputation() {
+  setStatus('Loading reputation...');
+  try {
+    const resp = await fetch('/api/reputation');
+    if (!resp.ok) { setStatus('Error loading reputation'); return; }
+    const data = await resp.json();
+    renderReputation(data);
+    setStatus('Reputation loaded');
+  } catch(e) { setStatus('Error: ' + e.message); }
+}
+
+function renderReputation(d) {
+  const el = document.getElementById('repContent');
+  if (!el) return;
+
+  function pct(v) { return v != null ? (v * 100).toFixed(1) + '%' : '—'; }
+  function flt(v, dec) { return v != null ? v.toFixed(dec ?? 2) : '—'; }
+  function usd(v) { return v != null ? '$' + Math.round(v).toLocaleString() : '$0'; }
+
+  // Overall metrics grid
+  const metrics = [
+    ['Applications', d.total_applications],
+    ['Interviews', d.interviews],
+    ['Wins', '<span style="color:#a3be8c;font-weight:bold">' + d.wins + '</span>'],
+    ['Losses', '<span style="color:#bf616a">' + d.losses + '</span>'],
+    ['Win rate', pct(d.win_rate)],
+    ['Avg rating', flt(d.avg_rating)],
+    ['On-time %', pct(d.on_time_pct)],
+    ['Repeat clients', d.repeat_client_count],
+    ['Total earnings', usd(d.total_earnings)],
+    ['Avg project value', usd(d.avg_project_value)],
+  ];
+
+  const overallHtml = `<div class="panel">
+    <h2>Overall</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">
+      ${metrics.map(([k,v]) => `<div style="background:#2e3440;padding:6px 8px;border-radius:3px">
+        <div style="font-size:10px;color:#6a7482;margin-bottom:2px">${k}</div>
+        <div style="font-size:14px;font-weight:bold">${v}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+
+  // Per-platform table
+  let platHtml = '';
+  if (d.per_platform && d.per_platform.length) {
+    const rows = d.per_platform.map(p => `<tr>
+      <td><b>${escHtml(p.platform)}</b></td>
+      <td>${p.applications}</td>
+      <td style="color:#a3be8c">${p.wins}</td>
+      <td style="color:#bf616a">${p.losses}</td>
+      <td>${pct(p.win_rate)}</td>
+      <td>${flt(p.avg_rating)}</td>
+      <td>${pct(p.on_time_pct)}</td>
+      <td>${p.repeat_clients}</td>
+      <td>${usd(p.earnings)}</td>
+    </tr>`).join('');
+    platHtml = `<div class="panel overflow-x">
+      <h2>Per Platform</h2>
+      <table>
+        <thead><tr>
+          <th>Platform</th><th style="width:44px">Apps</th><th style="width:44px">Wins</th>
+          <th style="width:54px">Losses</th><th style="width:60px">Win%</th>
+          <th style="width:72px">Avg Rating</th><th style="width:72px">On-time%</th>
+          <th style="width:64px">Repeat</th><th style="width:80px">Earnings</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  } else {
+    platHtml = '<div class="panel"><p style="color:#6a7482;font-size:12px">No per-platform data yet. Record outcomes with <code>freelance-os outcome add</code>.</p></div>';
+  }
+
+  // Momentum table
+  let momHtml = '';
+  if (d.momentum && d.momentum.length) {
+    const rows = d.momentum.map(m => `<tr>
+      <td style="color:#88c0d0">${escHtml(m.period)}</td>
+      <td style="color:#a3be8c">${m.wins}</td>
+      <td style="color:#bf616a">${m.losses}</td>
+      <td>${pct(m.win_rate)}</td>
+      <td>${usd(m.earnings)}</td>
+      <td>${flt(m.avg_rating)}</td>
+    </tr>`).join('');
+    momHtml = `<div class="panel overflow-x">
+      <h2>Momentum (monthly)</h2>
+      <table>
+        <thead><tr>
+          <th style="width:80px">Month</th><th style="width:44px">Wins</th>
+          <th style="width:54px">Losses</th><th style="width:60px">Win%</th>
+          <th style="width:80px">Earnings</th><th style="width:72px">Avg Rating</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  } else {
+    momHtml = '<div class="panel"><p style="color:#6a7482;font-size:12px">No momentum data yet. Record outcomes over time to see trends.</p></div>';
+  }
+
+  el.innerHTML = overallHtml + platHtml + momHtml;
 }
 
 // ---------------------------------------------------------------------------

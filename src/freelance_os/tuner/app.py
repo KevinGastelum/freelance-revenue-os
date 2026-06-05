@@ -683,6 +683,15 @@ def get_sources(
     )
 
 
+@app.get("/api/reputation")
+def get_reputation() -> dict:
+    """Return reputation metrics: overall, per-platform, momentum."""
+    from freelance_os.reports.reputation import aggregate_reputation
+
+    cfg = {"paths": {"database_path": _db_path}}
+    return aggregate_reputation(cfg)
+
+
 @app.get("/api/quickwins")
 def get_quickwins(limit: int = 20) -> List[dict]:
     """Return top quick-win leads: warren-feasible, MED/HIGH confidence, sorted by score/effort."""

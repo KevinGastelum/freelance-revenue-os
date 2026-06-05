@@ -30,6 +30,13 @@ def create_tables(engine=None, db_path: str = "data/freelance_os.sqlite"):
         "ALTER TABLE lead ADD COLUMN warren_feasible BOOLEAN",
         "ALTER TABLE lead ADD COLUMN suggested_price REAL",
         "ALTER TABLE lead ADD COLUMN suggested_turnaround_days INTEGER",
+        # CC-5 reputation fields on outcome (all nullable — safe for existing rows)
+        "ALTER TABLE outcome ADD COLUMN rating REAL",
+        "ALTER TABLE outcome ADD COLUMN review_text VARCHAR",
+        "ALTER TABLE outcome ADD COLUMN on_time BOOLEAN",
+        "ALTER TABLE outcome ADD COLUMN is_repeat_client BOOLEAN",
+        "ALTER TABLE outcome ADD COLUMN platform VARCHAR",
+        "ALTER TABLE outcome ADD COLUMN delivered_at DATETIME",
     ]
     with engine.connect() as conn:
         for stmt in _migrations:
