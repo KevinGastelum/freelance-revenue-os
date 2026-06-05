@@ -894,6 +894,112 @@ def client_tmux(
     console.print(f"[dim]Run:[/dim] bash {script_path}")
 
 
+@client_app.command("scaffold")
+def client_scaffold(
+    scaffold_type: Optional[str] = typer.Option(
+        None, "--type", "-t",
+        help="Scaffold type: scraper, data-pipeline, powerbi, nextjs, wordpress",
+    ),
+    name: Optional[str] = typer.Option(None, "--name", help="Project name (used as directory slug)"),
+    lead_id: Optional[int] = typer.Option(
+        None, "--lead", help="Existing lead ID — attaches scaffold to that project's 01_workspace/",
+    ),
+    out: Optional[str] = typer.Option(None, "--out", help="Base output directory (default: client_work_dir from config)"),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing scaffold"),
+    list_types: bool = typer.Option(False, "--list", help="List available scaffold types and exit"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Generate a ready-to-build project skeleton for a common gig type.
+
+    Creates source skeleton + README + ACCEPTANCE.md + DISPATCH_BRIEF.md
+    (a ready Warren prompt) under client-work/<name>/01_workspace/.
+
+    Types: scraper, data-pipeline, powerbi, nextjs, wordpress
+
+    Examples:
+
+      freelance-os client scaffold --list
+
+      freelance-os client scaffold --type scraper --name acme-scraper
+
+      freelance-os client scaffold --type powerbi --lead 7 --force
+    """
+    from freelance_os.client.scaffold import SCAFFOLD_TYPES, generate_scaffold
+    from freelance_os.config import load_config, ConfigError
+
+    if list_types:
+        console.print("[bold]Available scaffold types:[/bold]")
+        for t in SCAFFOLD_TYPES:
+            console.print(f"  [cyan]{t}[/cyan]")
+        return
+
+    if not scaffold_type:
+        console.print(
+            "[red]--type is required.[/red] "
+            f"Valid types: {', '.join(SCAFFOLD_TYPES)}\n"
+            "Use --list to enumerate types."
+        )
+        raise typer.Exit(1)
+
+    if scaffold_type not in SCAFFOLD_TYPES:
+        console.print(
+            f"[red]Unknown type '{scaffold_type}'.[/red] "
+            f"Valid: {', '.join(SCAFFOLD_TYPES)}"
+        )
+        raise typer.Exit(1)
+
+    try:
+        cfg = load_config(config or "config/settings.toml")
+    except ConfigError as exc:
+        console.print(f"[red]Config error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    from pathlib import Path
+
+    base_dir = Path(out) if out else Path(cfg["paths"].get("client_work_dir", "client-work"))
+    proj_name: str
+
+    if lead_id is not None:
+        from freelance_os.db import get_engine
+        from freelance_os.models import ClientProject
+        from sqlmodel import Session, select
+
+        engine = get_engine(cfg["paths"]["database_path"])
+        with Session(engine) as session:
+            project = session.exec(
+                select(ClientProject).where(ClientProject.lead_id == lead_id)
+            ).first()
+
+        if project and project.workspace_path:
+            target = Path(project.workspace_path) / "01_workspace"
+            proj_name = name or project.project_name
+        else:
+            proj_name = name or f"lead-{lead_id}"
+            target = base_dir / proj_name / "01_workspace"
+    else:
+        if not name:
+            console.print("[red]Provide --name NAME or --lead ID.[/red]")
+            raise typer.Exit(1)
+        proj_name = name
+        target = base_dir / proj_name / "01_workspace"
+
+    try:
+        scaffold_dir = generate_scaffold(
+            scaffold_type=scaffold_type,
+            target_dir=target,
+            name=proj_name,
+            force=force,
+        )
+    except (ValueError, FileExistsError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Scaffold ({scaffold_type}) created:[/green] {scaffold_dir}")
+    console.print(
+        f"[dim]Edit TODO items, then dispatch via Warren using DISPATCH_BRIEF.md[/dim]"
+    )
+
+
 @client_app.command("worktree")
 def client_worktree(
     project_name: str = typer.Option(..., "--project", help="Project folder name"),
