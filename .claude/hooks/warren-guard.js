@@ -33,7 +33,8 @@ function main(input) {
     process.stdout.write(
       '[Warren] This repo is Warren-aware. Health: scripts/wr-health.sh | ' +
       'Projects: scripts/wr-projects.sh. Never print WARREN_API_TOKEN or .env ' +
-      'contents; never auto-merge Warren branches. See CLAUDE.md.\n'
+      'contents; never auto-merge Warren branches. See CLAUDE.md.\n' +
+      warrenFacts()
     );
     process.exit(0);
   }
@@ -54,6 +55,28 @@ function main(input) {
     process.exit(2);
   }
   process.exit(0);
+}
+
+// Best-effort: surface discovered Warren constants so the agent never re-queries
+// them (project id, base url). Reads .warren/project.json; never reads/prints the
+// token. Any error => empty string (fail open, per the file contract).
+function warrenFacts() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const f = path.join(process.cwd(), '.warren', 'project.json');
+    const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const id = j.projectId || process.env.WARREN_PROJECT_ID || '?';
+    const url = j.baseUrl || process.env.WARREN_BASE_URL || 'http://localhost:8080';
+    const branch = j.defaultBranch || 'main';
+    return (
+      '[Warren] Project: ' + id + ' @ ' + url + ' (default branch ' + branch + '). ' +
+      'Token auto-loads via scripts/wr-env.sh — do NOT export it by hand. ' +
+      'Constants live in .warren/project.json; do not re-query the API for them.\n'
+    );
+  } catch (_) {
+    return '';
+  }
 }
 
 function firstViolation(cmd) {

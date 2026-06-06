@@ -32,3 +32,23 @@ _wr_load_token() {
   return 0
 }
 _wr_load_token
+
+# Export WARREN_PROJECT_ID / WARREN_BASE_URL from .warren/project.json if unset, so
+# scripts and agents never have to query the API to rediscover them. Best-effort.
+_wr_load_project() {
+  local pj
+  pj="$(dirname "${BASH_SOURCE[0]}")/../.warren/project.json"
+  [ -f "$pj" ] || return 0
+  if [ -z "${WARREN_PROJECT_ID:-}" ]; then
+    local id
+    id="$(sed -n 's/.*"projectId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$pj" 2>/dev/null | head -n1)"
+    [ -n "$id" ] && export WARREN_PROJECT_ID="$id"
+  fi
+  if [ -z "${WARREN_BASE_URL:-}" ]; then
+    local url
+    url="$(sed -n 's/.*"baseUrl"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$pj" 2>/dev/null | head -n1)"
+    [ -n "$url" ] && export WARREN_BASE_URL="$url"
+  fi
+  return 0
+}
+_wr_load_project

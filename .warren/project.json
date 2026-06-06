@@ -1,0 +1,7 @@
+{
+  "projectId": "prj_cj3a8t7sdxyn",
+  "baseUrl": "http://localhost:8080",
+  "defaultBranch": "main",
+  "warrenServerEnv": "~/Documents/Coding/warren-kay/warren/.env",
+  "note": "Discovered Warren constants — single source of truth so agents/humans never re-query them. The API token auto-loads via scripts/wr-env.sh (never export by hand). warren-guard.js surfaces projectId+baseUrl into context at SessionStart; wr-env.sh exports them to the shell; .claude/settings.local.json pins them as env. If the Warren project is recreated, update projectId here and in settings.local.json."
+}

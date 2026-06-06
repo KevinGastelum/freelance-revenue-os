@@ -10,7 +10,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/wr-env.sh"  # auto-load WARREN_API_TOKEN 
 
 here="$(cd "$(dirname "$0")" && pwd)"
 
-project_id="${1:-}"
+project_id="${1:-${WARREN_PROJECT_ID:-}}"   # defaults to .warren/project.json via wr-env.sh
 prompt="${2:-}"
 
 bash "${here}/wr-health.sh"

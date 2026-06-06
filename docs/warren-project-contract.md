@@ -2,6 +2,22 @@
 
 This repository is Warren-aware. Read this before dispatching any Warren run.
 
+## Resolved constants (do NOT re-query)
+
+Discovered Warren constants are recorded in **`.warren/project.json`** — the single
+source of truth so neither agents nor humans re-query the API each session:
+
+- **projectId** — `prj_cj3a8t7sdxyn`
+- **baseUrl** — `http://localhost:8080`
+- **defaultBranch** — `main`
+- **API token** — auto-loads via `scripts/wr-env.sh` from the Warren server `.env`
+  (`~/Documents/Coding/warren-kay/warren/.env`). Never `export` it by hand.
+
+These are also pinned as env in `.claude/settings.local.json` and exported to the
+shell by `wr-env.sh`, and `warren-guard.js` surfaces project id + base url into
+context at SessionStart. If the Warren project is recreated, update `projectId` in
+both `.warren/project.json` and `.claude/settings.local.json`.
+
 ## Warren Files
 
 - `.warren/config.yaml` — default agent/runtime/branch behavior (review-first;
