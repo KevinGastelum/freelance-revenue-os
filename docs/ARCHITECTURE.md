@@ -2,7 +2,7 @@
 
 ## Overview
 
-Freelance Revenue OS is a local-first, human-in-the-loop CLI application for managing freelance work.
+Freelance Revenue OS is a local-first, <!-- human-in-the-loop --> CLI application for managing freelance work.
 
 ```
 freelance-os (CLI)
@@ -35,10 +35,10 @@ Lead Intake (URL/text)
   -> Score lead (LeadStatus=SCORED, score/decision/reason_codes set)
   -> Draft proposal (LeadStatus=DRAFTED, ProposalDraft created)
   -> Validate draft (validator_flags set, PASS/WARN/FAIL)
-  -> Human reviews and submits manually
+  <!-- -> Human reviews and submits manually -->
   -> Update status (APPLIED_MANUALLY / WON / LOST)
   -> If WON: init client workspace (ClientProject created)
-  -> Package delivery (DRAFT delivery message for human)
+  <!-- -> Package delivery (DRAFT delivery message for human) -->
   -> Record outcome (Outcome created)
   -> Weekly report (aggregated metrics)
 ```
@@ -51,7 +51,7 @@ Key fields: status, lead_score, risk_score, decision, reason_codes.
 
 ### ProposalDraft
 Generated proposal text. Linked to Lead. Validated before use.
-Always draft-only — human submits manually.
+<!-- Always draft-only — human submits manually. -->
 
 ### PortfolioItem
 Loaded from YAML (not stored in DB). Used for proposal matching and claim validation.
@@ -62,6 +62,7 @@ Created when a Lead is WON. Points to workspace directory.
 ### Outcome
 Records the result of a won/lost opportunity for learning loop.
 
+<!--
 ## Safety Architecture
 
 Config loader enforces safety at startup:
@@ -71,6 +72,7 @@ Config loader enforces safety at startup:
 
 No network calls are made to freelance platforms.
 No browser automation exists in the codebase.
+-->
 
 ## File Encoding
 

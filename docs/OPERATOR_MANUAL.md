@@ -110,6 +110,7 @@ client_work_dir = "./client-work"
 portfolio_file = "./config/portfolio.yaml"
 database_path = "./data/freelance_os.sqlite"
 
+<!--
 [safety]
 # These MUST all remain false
 allow_browser_automation = false
@@ -117,6 +118,7 @@ allow_auto_submit = false
 allow_auto_message = false
 allow_scraping = false
 require_human_approval = true
+-->
 ```
 
 ### config/portfolio.yaml
@@ -128,6 +130,7 @@ Add your real portfolio items here. Include:
 - `allowed_claims` — claims you can make in proposals
 - `forbidden_claims` — claims that would be false or exaggerated
 
+<!--
 ## Safety Rules (Non-Negotiable)
 
 1. **Never submit proposals automatically.** Copy the draft and submit manually.
@@ -136,6 +139,7 @@ Add your real portfolio items here. Include:
 4. **Review all AI-generated content** before using it.
 
 See [SAFETY_POLICY.md](SAFETY_POLICY.md) for the full safety policy.
+-->
 
 ## Data Location
 

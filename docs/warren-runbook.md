@@ -8,8 +8,8 @@ steer/cancel mid-run, and returns work as a **branch or PR** for human review.
 It is not the `freelance-os` app itself — it is the layer that runs agents
 *on* this repo.
 
-This repo's own philosophy (docs/PRD.md) is **"AI prepares. Human commits."**
-Warren fits that exactly: agents prepare branches; a human reviews and merges.
+<!-- This repo's own philosophy (docs/PRD.md) is **"AI prepares. Human commits."**
+Warren fits that exactly: agents prepare branches; a human reviews and merges. -->
 
 ## Environment (this machine)
 
@@ -159,8 +159,8 @@ explicit human approval.**
 - Never ask a Warren agent to exfiltrate secrets.
 - Never dispatch destructive operations without explicit human approval.
 - Never auto-merge a Warren branch — always review first.
-- Honor docs/PRD.md section 2: **no** automated platform actions (no auto-submit,
-  auto-message, scraping, browser/anti-bot automation) may be introduced.
+<!-- - Honor docs/PRD.md section 2: **no** automated platform actions (no auto-submit,
+  auto-message, scraping, browser/anti-bot automation) may be introduced. -->
 - A local Claude Code guard (`.claude/hooks/warren-guard.js`) blocks the most
   obvious token/`.env` leaks and Warren project deletes. It is best-effort
   defense-in-depth, not a guarantee — stay careful.

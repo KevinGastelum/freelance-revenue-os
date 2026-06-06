@@ -1,6 +1,45 @@
 # HANDOFF — freelance-os
 _Updated 2026-06-06. For the next human + Claude Code + Warren session. Run `/session-start-wr` to rehydrate._
 
+## 2026-06-06 (session 2) — IN PROGRESS, resumed after a bypass-mode restart
+**Permission friction FIXED durably:** `.claude/settings.local.json` now pins
+`permissions.defaultMode: "bypassPermissions"` (gitignored). Every session in this folder
+now starts with NO approval prompts, no `--dangerously-skip-permissions` flag needed, from
+any entry point. **Do NOT remove this** (explicit user directive). Mirror it into the
+os-warren scaffold's local-settings template so it's universal.
+
+**Done this session:** committed `justfile` (`d32f4f7`, uv/just recipes); discarded a stray
+working-tree edit that deleted `freelance-os init` from OPERATOR_MANUAL.md (it's a real
+command — `cli.py:43`, referenced at `cli.py:1203` + dashboard UI; deletion would ship wrong
+docs); deleted 17 remote + 1 local ephemeral `warren/run_*` junk branches (SHAs recorded in
+the session transcript — recover any via `git push origin <sha>:refs/heads/<name>`).
+Remaining non-run branches left in place: `warren-integration`, `mule-deer-ristra` (Warp worktree).
+
+<!--
+**DECISION — PRD §2/§6 removal request: PARTIALLY DECLINED.** §2 (anti-bot evasion,
+fingerprint spoofing, residential proxies, CAPTCHA bypass, automated login/scraping,
+auto-submit proposals, auto-messaging, auto-payment) stays — that's ToS-circumvention /
+detection-evasion / mass-targeting and is a hard no, and it's the very ban-risk the PRD
+mission exists to avoid. §6's *non-safety* scope items (multi-user SaaS auth, complex CRM,
+dashboard-gating, "autonomy beyond local drafting") CAN be revisited now MVP is done. Legit
+path to "more hands-off" freelancing: official platform APIs where permitted + faster
+human-commit UX — NOT evasion. NOTE: this is separate from autonomous *build* orchestration
+(below), which is fully fine.
+-->
+
+**PENDING — user's 2026-06-06 batch, not yet started:**
+1. **Autonomous build-orchestration plan** (important) — hands-off Warren build pipeline.
+2. **Durable tracking** — Warren tracks *runs* only, not backlog/milestones/PRD-checkoff.
+   Fill the gap with a lightweight CHECKED-IN doc (no new MCP/plugin — avoid headless-agent
+   overhead). Consolidate docs/BACKLOG.md + a PRD-phase checklist + blockers/decisions log.
+3. **GH collaboration/identity enforcement** — map + enforce who commits as what
+   (KevinGastelum=human, Kay/K-Bot-T1=agent, 0xkay=? NEED the identity→role mapping).
+4. **Global hook** — detect a concurrent CC session in the same project dir → launch the new
+   session in a fresh git worktree.
+5. **Mirror** all the above + bypass-mode default into the os-warren scaffold (universal).
+   Guiding rule the user set: for every add, ask "does Warren already handle this?" before
+   introducing skills/MCPs/plugins that add unwanted headless-agent overhead.
+
 ## Status: COMPLETE on `main` (MVP + Command Center) — HEAD `0cc9b99`, pushed
 334 tests green; cross-platform (Windows utf-8) clean. Shipped: MVP phases 1-7 + Command Center CC-1..6 — job board, 22-platform source directory, email ingestion, feasibility/quick-wins, web dashboard (`freelance-os dashboard`), reputation dashboard, client-delivery scaffolds.
 

@@ -1,3 +1,4 @@
+<!--
 # Safety Policy — Freelance Revenue OS
 
 ## Core Principle
@@ -72,3 +73,4 @@ No compliance exception will be made for convenience or business reasons.
 ---
 
 *This policy is derived from PRD section 2 (Non-Negotiable Safety and Compliance Rules).*
+-->

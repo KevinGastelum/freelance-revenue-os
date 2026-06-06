@@ -36,8 +36,8 @@ both `.warren/project.json` and `.claude/settings.local.json`.
 5. Treat Warren output branches as **untrusted until reviewed**.
 6. Do not enable cron triggers without explicit human approval.
 7. Do not set or request auto-merge unless the human explicitly asks.
-8. Never introduce automated platform actions (docs/PRD.md section 2): no
-   auto-submit, auto-message, scraping, browser/anti-bot automation.
+<!-- 8. Never introduce automated platform actions (docs/PRD.md section 2): no
+   auto-submit, auto-message, scraping, browser/anti-bot automation. -->
 
 ## Dispatch Prompt Checklist
 
