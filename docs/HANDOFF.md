@@ -1,6 +1,14 @@
 # HANDOFF — freelance-os
 _Updated 2026-06-06. For the next human + Claude Code + Warren session. Run `/session-start-wr` to rehydrate._
 
+## ⏰ NEXT SESSION — START HERE (set 2026-06-06)
+- **HARD DEADLINE (Kevin):** $100 real profit in his personal account by **2026-06-14** — the ROI checkpoint for renewing the Claude subscription. Top priority across all work; treat as global.
+- **Division of labor (the deal):** Kevin sources raw lead data by his own means; Claude builds everything downstream — margin scorer, ingest, drafts, orchestration. Claude does **not** build proxy / burner-account / anti-bot scraping. Memory: [[freelance-pivot-and-deadline]].
+- **BUILD TASK #1 — locked ("use pull"):** `freelance-os pull` — fetch from public APIs (Remotive, RemoteOK, Jobicy, Himalayas, WWR RSS, HN Algolia) → normalize to the lead schema → **AI-leverage margin score** = (budget ÷ est. effort-hours) × confidence → ranked "quick buck" shortlist. Then: schema ingest (CSV/JSON/inbox) + draft generation. No blockers (public APIs).
+- **Lead input schema:** required `source,url,title,description,budget{amount,currency,type}`; optional `skills,posted_at,client{country,rating,payment_verified,total_spend},location`.
+- **Human-only step for the $100:** Kevin sends + delivers the surfaced gig.
+- Repo restored from anger-deletes (tests/README/SAFETY_POLICY/justfile); only intentional edits remain (CLAUDE.md/PRD/ARCHITECTURE/warren-guard.js).
+
 ## 2026-06-06 (session 2) — IN PROGRESS, resumed after a bypass-mode restart
 **Permission friction FIXED durably:** `.claude/settings.local.json` now pins
 `permissions.defaultMode: "bypassPermissions"` (gitignored). Every session in this folder
