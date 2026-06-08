@@ -1,0 +1,5 @@
+title,description,url,budget,skills,location,remote
+Python API Developer,"Build a REST API with FastAPI, Auth, and Postgres integration. Medium scope project with clear requirements and test coverage expected.",https://example.com/lead/1,$5000,"Python,FastAPI,PostgreSQL",Remote,true
+Hourly Django Consultant,"Maintain and extend a Django e-commerce application. Add product variants, discount engine, and admin improvements.",https://example.com/lead/2,$80/hr,"Django,Python",USA,true
+Data Pipeline Engineer,"Design and implement ETL pipeline for marketing data warehouse. Rebuild from manual CSV exports to automated Airflow DAGs with monitoring.",https://example.com/lead/3,$12000,"Python,Airflow,SQL",Remote,true
+Quick Logo Tweak,"Minor logo color adjustment in Illustrator. Very small task, only one file.",https://example.com/lead/4,$50,"Illustrator,Design",Remote,false
