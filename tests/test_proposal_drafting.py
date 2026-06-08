@@ -143,3 +143,75 @@ def test_validator_detects_forbidden_claim(portfolio_cfg):
     result = validate_draft(draft, portfolio_cfg)
     assert result["status"] == "FAIL"
     assert any("unsupported claim" in r for r in result["reasons"])
+
+
+# ---------------------------------------------------------------------------
+# FIX 4 — article grammar + surface task cleanup
+# ---------------------------------------------------------------------------
+
+def test_authentication_bottleneck_uses_an():
+    """'authentication' starts with a vowel — must render 'an authentication'."""
+    text = render_proposal(
+        core_bottleneck="authentication and authorization",
+        surface_task="implementation",
+        step_1="Step 1",
+        step_2="Step 2",
+        step_3="Step 3",
+        project_reference="my FastAPI project",
+        proof_point="built REST APIs",
+        clarifying_question="What is the deadline?",
+    )
+    assert "an authentication" in text
+    assert "a authentication" not in text
+
+
+def test_consonant_bottleneck_uses_a():
+    """'data architecture' starts with a consonant — must render 'a data'."""
+    text = render_proposal(
+        core_bottleneck="data architecture",
+        surface_task="dashboard",
+        step_1="S1",
+        step_2="S2",
+        step_3="S3",
+        project_reference="ref",
+        proof_point="proof",
+        clarifying_question="Q?",
+    )
+    assert "a data architecture" in text
+
+
+def test_surface_task_no_leading_stopwords():
+    """_infer_surface_task must not return a phrase starting with a stopword."""
+    from freelance_os.proposal.draft_generator import _infer_surface_task
+    # Regex would capture "in small" from this text without the fix
+    result = _infer_surface_task("fix in small script")
+    assert not result.startswith("in ")
+    assert result not in ("in small", "in script")
+
+
+def test_surface_task_fallback_on_junk():
+    """_infer_surface_task falls back to 'implementation' when all words are stopwords."""
+    from freelance_os.proposal.draft_generator import _infer_surface_task
+    result = _infer_surface_task("fix in the")
+    assert result == "implementation"
+
+
+def test_generate_draft_no_a_authentication(portfolio_cfg):
+    """Draft generated for an auth-related lead must not contain 'a authentication'."""
+    lead = Lead(
+        id=1, source="upwork",
+        title="Fix authentication login bug",
+        description="Users cannot login. Auth is broken. Need to fix security access.",
+    )
+    result = generate_draft(lead, portfolio_cfg)
+    assert "a authentication" not in result["draft_text"]
+    assert "a authorization" not in result["draft_text"]
+
+
+def test_surface_task_strips_verb_substring_and_prepositions():
+    """'Rebuild' must not match 'build', and preposition fragments fall back cleanly."""
+    from freelance_os.proposal.draft_generator import _infer_surface_task
+    # "Rebuild from manual ..." must not leak "from manual" (build inside Rebuild; 'from' fragment)
+    assert _infer_surface_task("Rebuild from manual CSV exports") == "implementation"
+    # A genuine verb + noun phrase still extracts cleanly.
+    assert _infer_surface_task("Build a REST API") == "rest api"

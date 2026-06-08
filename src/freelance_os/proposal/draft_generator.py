@@ -12,19 +12,35 @@ from freelance_os.proposal.portfolio_matcher import (
 from freelance_os.proposal.templates import render_proposal
 
 
+_SURFACE_STOPWORDS = frozenset({
+    "in", "the", "a", "an", "my", "your", "our", "to", "for", "of",
+    "and", "or", "is", "was", "be", "this", "that", "with", "on", "at",
+    "it", "its", "by", "from", "into", "about", "as", "we", "you", "i",
+})
+
+
 def _infer_surface_task(text: str) -> str:
-    """Infer what the client calls the task."""
+    """Infer what the client calls the task (clean noun phrase, else 'implementation')."""
+    # \b prevents matching a verb inside another word (e.g. "build" inside "Rebuild").
     patterns = [
-        (r"build\s+(?:a\s+)?(\w+\s+\w+)", 1),
-        (r"create\s+(?:a\s+)?(\w+\s+\w+)", 1),
-        (r"develop\s+(?:a\s+)?(\w+\s+\w+)", 1),
-        (r"fix\s+(?:a\s+)?(\w+\s+\w+)", 1),
-        (r"design\s+(?:a\s+)?(\w+\s+\w+)", 1),
+        r"\bbuild\b\s+(?:an?\s+)?(\w+\s+\w+)",
+        r"\bcreate\b\s+(?:an?\s+)?(\w+\s+\w+)",
+        r"\bdevelop\b\s+(?:an?\s+)?(\w+\s+\w+)",
+        r"\bfix\b\s+(?:an?\s+)?(\w+\s+\w+)",
+        r"\bdesign\b\s+(?:an?\s+)?(\w+\s+\w+)",
     ]
-    for pattern, group in patterns:
+    for pattern in patterns:
         m = re.search(pattern, text, re.IGNORECASE)
-        if m:
-            return m.group(group).strip()
+        if not m:
+            continue
+        words = m.group(1).split()
+        while words and words[0].lower() in _SURFACE_STOPWORDS:
+            words.pop(0)
+        # Accept only a clean phrase: every remaining word alphabetic and not a stopword.
+        if words and all(w.isalpha() and w.lower() not in _SURFACE_STOPWORDS for w in words):
+            result = " ".join(words).lower()
+            if len(result) >= 3:
+                return result
     return "implementation"
 
 

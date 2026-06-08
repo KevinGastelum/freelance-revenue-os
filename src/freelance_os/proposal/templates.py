@@ -1,7 +1,13 @@
 """Proposal template strings per PRD section 11.1."""
 
+
+def _article(word: str) -> str:
+    """Return 'an' if word starts with a vowel sound, else 'a'."""
+    return "an" if word[:1].lower() in "aeiou" else "a"
+
+
 PROPOSAL_TEMPLATE = """\
-I'd approach this as a {core_bottleneck} problem, not just a {surface_task} task.
+I'd approach this as {article_bottleneck} {core_bottleneck} problem, not just {article_surface} {surface_task} task.
 
 Here's how I'd handle it:
 - {step_1}
@@ -27,6 +33,8 @@ def render_proposal(
     clarifying_question: str,
 ) -> str:
     return PROPOSAL_TEMPLATE.format(
+        article_bottleneck=_article(core_bottleneck),
+        article_surface=_article(surface_task),
         core_bottleneck=core_bottleneck,
         surface_task=surface_task,
         step_1=step_1,
