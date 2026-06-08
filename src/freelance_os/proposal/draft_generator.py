@@ -12,6 +12,13 @@ from freelance_os.proposal.portfolio_matcher import (
 from freelance_os.proposal.templates import render_proposal
 
 
+_SURFACE_STOPWORDS = frozenset({
+    "in", "the", "a", "an", "my", "your", "our", "to", "for", "of",
+    "and", "or", "is", "was", "be", "this", "that", "with", "on", "at",
+    "it", "its", "by",
+})
+
+
 def _infer_surface_task(text: str) -> str:
     """Infer what the client calls the task."""
     patterns = [
@@ -24,7 +31,13 @@ def _infer_surface_task(text: str) -> str:
     for pattern, group in patterns:
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
-            return m.group(group).strip()
+            phrase = m.group(group).strip()
+            words = phrase.split()
+            while words and words[0].lower() in _SURFACE_STOPWORDS:
+                words.pop(0)
+            result = " ".join(words).lower()
+            if words and len(result) >= 3 and not all(w.lower() in _SURFACE_STOPWORDS for w in words):
+                return result
     return "implementation"
 
 
