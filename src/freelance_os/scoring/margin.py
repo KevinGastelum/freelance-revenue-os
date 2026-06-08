@@ -4,6 +4,8 @@ Scores normalized lead dicts by $/hour margin, reputation value, and
 confidence. Does NOT include any tech-stack-match term.
 """
 
+import math
+import re
 from typing import Any, Dict
 
 # Static currency -> USD rates (approximate, v1).
@@ -54,14 +56,23 @@ _SMALL_SCOPE = frozenset({
     "simple", "quick", "small", "minor", "tiny",
 })
 
-# $/hr reference for normalizing margin (a strong margin benchmark).
-_MARGIN_REFERENCE = 200.0
+# Log-curve margin normalization bounds ($/hr).
+_LOG_MARGIN_FLOOR = 40.0   # below this scores 0
+_LOG_MARGIN_CAP = 1000.0   # above this saturates to 1
+
+# Quantity cues that signal multi-deliverable scope.
+_QUANTITY_CUES = frozenset({
+    "pages", "endpoints", "screens", "routes", "components", "modules",
+    "services", "tables", "reports", "dashboards", "integrations", "features",
+    "workflows", "steps", "phases", "requirements",
+})
 
 
 def _estimate_effort_hours(description: str, title: str = "") -> float:
     """Return a heuristic effort estimate in hours (no LLM)."""
     text = (title + " " + description).lower()
-    words = set(text.split())
+    all_words = text.split()
+    words = set(all_words)
 
     big = bool(words & _BIG_SCOPE)
     small = bool(words & _SMALL_SCOPE)
@@ -74,8 +85,7 @@ def _estimate_effort_hours(description: str, title: str = "") -> float:
     elif medium:
         base = 15.0
     else:
-        # No strong scope keyword — use word count as a proxy.
-        wc = len(text.split())
+        wc = len(all_words)
         if wc > 300:
             base = 20.0
         elif wc < 30:
@@ -83,7 +93,26 @@ def _estimate_effort_hours(description: str, title: str = "") -> float:
         else:
             base = 10.0
 
+    # Blend: quantity cues and deliverable bullet lists add signal.
+    qty_hits = sum(1 for w in all_words if w in _QUANTITY_CUES)
+    deliverable_lines = len(re.findall(r"(?m)^\s*(?:[-*•]|\d+\.)\s", description))
+    extra_signal = qty_hits + deliverable_lines
+    if extra_signal >= 5:
+        base = max(base, 25.0)
+    elif extra_signal >= 3:
+        base = max(base, base * 1.5)
+    elif extra_signal >= 1 and not small:
+        base = max(base, base * 1.2)
+
     return base
+
+
+def _norm_margin(margin: float) -> float:
+    """Log-curve normalize $/hr margin between FLOOR and CAP to [0, 1]."""
+    _ln_floor = math.log(_LOG_MARGIN_FLOOR)
+    _ln_cap = math.log(_LOG_MARGIN_CAP)
+    raw = (math.log(max(margin, _LOG_MARGIN_FLOOR)) - _ln_floor) / (_ln_cap - _ln_floor)
+    return max(0.0, min(1.0, raw))
 
 
 def _estimate_confidence(lead: Dict[str, Any]) -> float:
@@ -192,16 +221,29 @@ def score_lead(
     )
     confidence = _estimate_confidence(lead)
     budget_usd = _compute_budget_usd(lead, assumed_hours)
-    margin = budget_usd / max(effort_hours, 0.25)
+    budget_type = (lead.get("budget") or {}).get("type") or "fixed"
     rep_value = _reputation_value(lead)
 
-    norm_margin = min(1.0, margin / _MARGIN_REFERENCE)
-    final_score = w_margin * norm_margin + w_rep * rep_value + w_conf * confidence
+    if budget_type == "annual":
+        # Treat as effective hourly; do not divide by effort_hours.
+        margin = budget_usd / 2080.0
+    else:
+        margin = budget_usd / max(effort_hours, 0.25)
 
-    conf_label = "L" if confidence < 0.35 else ("M" if confidence < 0.65 else "H")
-    rep_label = "rep+" if rep_value >= 0.6 else ("rep~" if rep_value >= 0.4 else "rep-")
-    budget_str = f"${budget_usd:.0f}" if budget_usd > 0 else "?"
-    verdict = f"quick buck: ~{effort_hours:.0f}h, {budget_str}, conf {conf_label}, {rep_label}"
+    norm_margin_val = _norm_margin(margin)
+    final_score = w_margin * norm_margin_val + w_rep * rep_value + w_conf * confidence
+
+    if budget_type == "annual":
+        final_score = final_score * 0.6
+        eff_hr = budget_usd / 2080.0
+        verdict = f"salaried ~${budget_usd:.0f}/yr, eff ${eff_hr:.0f}/hr, conf {'L' if confidence < 0.35 else ('M' if confidence < 0.65 else 'H')}, {'rep+' if rep_value >= 0.6 else ('rep~' if rep_value >= 0.4 else 'rep-')}"
+    else:
+        conf_label = "L" if confidence < 0.35 else ("M" if confidence < 0.65 else "H")
+        rep_label = "rep+" if rep_value >= 0.6 else ("rep~" if rep_value >= 0.4 else "rep-")
+        budget_str = f"${budget_usd:.0f}" if budget_usd > 0 else "?"
+        verdict = f"quick buck: ~{effort_hours:.0f}h, {budget_str}, conf {conf_label}, {rep_label}"
+        if margin > 500 and confidence <= 0.35:
+            verdict += " [suspicious margin]"
 
     return {
         "effort_hours": effort_hours,

@@ -3,6 +3,7 @@
 All tests are deterministic and offline.
 """
 
+import math
 import pytest
 
 from freelance_os.scoring.margin import (
@@ -13,6 +14,9 @@ from freelance_os.scoring.margin import (
     _to_usd,
     score_lead,
     _CURRENCY_TO_USD,
+    _norm_margin,
+    _LOG_MARGIN_FLOOR,
+    _LOG_MARGIN_CAP,
 )
 
 
@@ -274,6 +278,143 @@ def test_score_lead_custom_weights_no_reputation_mode():
         budget={"amount": 20000.0, "currency": "USD", "type": "fixed"},
     )
     result = score_lead(lead, w_margin=1.0, w_rep=0.0, w_conf=0.0, reputation_mode=False)
-    # With all weight on margin, final_score == normalized margin
-    expected_norm = min(1.0, result["margin"] / 200.0)
+    # With all weight on margin, final_score == log-normalized margin
+    expected_norm = _norm_margin(result["margin"])
     assert result["final_score"] == pytest.approx(expected_norm, rel=0.001)
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 — log-curve margin normalization
+# ---------------------------------------------------------------------------
+
+def test_norm_margin_strictly_increasing():
+    values = [50, 150, 300, 600, 1000]
+    norms = [_norm_margin(v) for v in values]
+    for i in range(len(norms) - 1):
+        assert norms[i] < norms[i + 1], (
+            f"norm_margin not strictly increasing at {values[i]} vs {values[i+1]}: "
+            f"{norms[i]:.4f} >= {norms[i+1]:.4f}"
+        )
+
+
+def test_norm_margin_low_clearly_below_high():
+    # $30/hr (below FLOOR) should score clearly below $300/hr
+    assert _norm_margin(30) < _norm_margin(300) * 0.5
+
+
+def test_norm_margin_at_or_above_cap_is_one():
+    assert _norm_margin(1000) == pytest.approx(1.0)
+    assert _norm_margin(2000) == pytest.approx(1.0)
+
+
+def test_norm_margin_at_floor_is_zero():
+    assert _norm_margin(_LOG_MARGIN_FLOOR) == pytest.approx(0.0)
+
+
+def test_suspicious_margin_note_in_verdict():
+    # High margin + low confidence -> "[suspicious margin]" note
+    lead = _make_lead(
+        title="Quick task",
+        description="Do a thing",
+        budget={"amount": 50000.0, "currency": "USD", "type": "fixed"},
+    )
+    result = score_lead(lead)
+    assert "[suspicious margin]" in result["verdict"]
+
+
+def test_no_suspicious_note_for_high_confidence():
+    # High confidence should suppress the suspicious note even at high margin
+    lead = _make_lead(
+        title="Quick task",
+        description="Do a thing. " * 40,  # > 80 words
+        budget={"amount": 50000.0, "currency": "USD", "type": "fixed"},
+        client={"payment_verified": True, "rating": 4.8},
+        skills=["python"],
+        posted_at="2024-03-01",
+    )
+    result = score_lead(lead)
+    assert "[suspicious margin]" not in result["verdict"]
+
+
+# ---------------------------------------------------------------------------
+# FIX 2 — annual salary type
+# ---------------------------------------------------------------------------
+
+def test_annual_90k_vs_180k_score_differently():
+    lead_90k = _make_lead(
+        title="Software Engineer",
+        description="Full-time remote role.",
+        budget={"amount": 90000.0, "currency": "USD", "type": "annual"},
+    )
+    lead_180k = _make_lead(
+        title="Senior Software Engineer",
+        description="Full-time remote role.",
+        budget={"amount": 180000.0, "currency": "USD", "type": "annual"},
+    )
+    score_90 = score_lead(lead_90k)["final_score"]
+    score_180 = score_lead(lead_180k)["final_score"]
+    assert score_180 > score_90
+
+
+def test_annual_ranks_below_real_gig():
+    real_gig = _make_lead(
+        title="Build a REST API integration",
+        description="Implement a FastAPI backend with database integration.",
+        budget={"amount": 5000.0, "currency": "USD", "type": "fixed"},
+        client={"payment_verified": True},
+        skills=["python"],
+        posted_at="2024-03-01",
+    )
+    annual_180k = _make_lead(
+        title="Senior Engineer",
+        description="Full-time role with competitive salary.",
+        budget={"amount": 180000.0, "currency": "USD", "type": "annual"},
+    )
+    gig_score = score_lead(real_gig)["final_score"]
+    annual_score = score_lead(annual_180k)["final_score"]
+    assert gig_score > annual_score
+
+
+def test_annual_verdict_shows_salaried():
+    lead = _make_lead(
+        title="Staff Engineer",
+        description="Full-time position.",
+        budget={"amount": 120000.0, "currency": "USD", "type": "annual"},
+    )
+    result = score_lead(lead)
+    assert "salaried" in result["verdict"]
+    assert "yr" in result["verdict"]
+
+
+def test_annual_margin_uses_2080_hours():
+    lead = _make_lead(
+        title="Engineer",
+        description="Role.",
+        budget={"amount": 104000.0, "currency": "USD", "type": "annual"},
+    )
+    result = score_lead(lead)
+    # $104k / 2080 = $50/hr exactly
+    assert result["margin"] == pytest.approx(50.0, rel=0.01)
+
+
+# ---------------------------------------------------------------------------
+# FIX 3 — richer effort heuristic
+# ---------------------------------------------------------------------------
+
+def test_effort_short_vs_long_multideliverable():
+    short_hours = _estimate_effort_hours("Fix typo in header text", "Fix typo")
+    long_desc = (
+        "Build a web application with the following features:\n"
+        "- User authentication and registration\n"
+        "- Dashboard with 5 screens\n"
+        "- REST API with 10 endpoints\n"
+        "- Database integration\n"
+        "- Admin panel with reports\n"
+        "- Email notifications\n"
+        "- Export to PDF feature\n"
+        "This is a complex project requiring extensive testing."
+    )
+    long_hours = _estimate_effort_hours(long_desc, "Complex web app")
+    assert short_hours < long_hours
+    assert short_hours <= 6
+    assert long_hours >= 20
