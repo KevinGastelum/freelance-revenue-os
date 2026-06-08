@@ -30,13 +30,24 @@ def _empty_lead(source: str, url: str, title: str, description: str) -> Dict[str
     }
 
 
+# Several public APIs (Remotive, Jobicy) 403 the bare `Python-urllib` UA as a
+# bot, so every request sends a descriptive identifier by default.
+_DEFAULT_UA = (
+    "freelance-revenue-os/0.1 (public API research client; "
+    "github.com/freelance-revenue-os)"
+)
+
+
 def _fetch_json(
     url: str,
     headers: Optional[Dict[str, str]] = None,
     timeout: int = 10,
 ) -> Any:
     """Fetch JSON from a URL. Raises on network/HTTP errors."""
-    req = urllib.request.Request(url, headers=headers or {})
+    hdrs = {"User-Agent": _DEFAULT_UA}
+    if headers:
+        hdrs.update(headers)
+    req = urllib.request.Request(url, headers=hdrs)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
