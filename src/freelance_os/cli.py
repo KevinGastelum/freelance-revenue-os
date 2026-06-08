@@ -2,7 +2,7 @@
 
 import sys
 import io
-from typing import Optional
+from typing import List, Optional
 
 import typer
 from rich import box as rich_box
@@ -1577,3 +1577,176 @@ def report_weekly(
 
     report = generate_weekly_report(cfg=cfg, export_path=export)
     console.print(report)
+
+
+# ---------------------------------------------------------------------------
+# freelance-os pull
+# ---------------------------------------------------------------------------
+
+@app.command()
+def pull(
+    source: Optional[List[str]] = typer.Option(
+        None, "--source", help="Source(s) to fetch (remotive, remoteok, jobicy, hn). Default: all."
+    ),
+    limit: int = typer.Option(20, "--limit", help="Max leads to show in the ranked table."),
+    reputation_mode: bool = typer.Option(True, "--reputation-mode/--no-reputation-mode",
+                                         help="Boost cheap easy-win gigs (default ON)."),
+    min_margin: float = typer.Option(0.0, "--min-margin", help="Filter leads below this $/hr margin."),
+    emit_json: bool = typer.Option(False, "--json", help="Emit ranked leads as JSON."),
+    draft_top: int = typer.Option(3, "--draft-top", help="Generate draft proposals for top N leads."),
+    persist: bool = typer.Option(False, "--persist", help="Save scored leads to SQLite (dedupe by url)."),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to settings.toml"),
+):
+    """Fetch public freelance gigs, score by AI-leverage margin, show a quick-buck shortlist."""
+    import json as _json
+    from rich.table import Table
+
+    from freelance_os.ingestion.pull import fetch_leads, SOURCES
+    from freelance_os.scoring.margin import score_lead as margin_score
+
+    # Validate source names
+    requested_sources = list(source) if source else None
+    if requested_sources:
+        unknown = [s for s in requested_sources if s not in SOURCES]
+        if unknown:
+            console.print(f"[red]Unknown source(s):[/red] {', '.join(unknown)}. "
+                          f"Valid: {', '.join(SOURCES)}")
+            raise typer.Exit(1)
+
+    if not emit_json:
+        src_label = ", ".join(requested_sources or list(SOURCES.keys()))
+        console.print(f"[cyan]Fetching leads from:[/cyan] {src_label}")
+
+    leads = fetch_leads(requested_sources)
+
+    if not leads:
+        console.print("[yellow]No leads returned from any source.[/yellow]")
+        raise typer.Exit(0)
+
+    # Score each lead
+    scored = []
+    for lead in leads:
+        s = margin_score(lead, reputation_mode=reputation_mode)
+        scored.append({**lead, **s})
+
+    # Filter by min_margin
+    if min_margin > 0:
+        scored = [l for l in scored if l["margin"] >= min_margin]
+
+    # Rank by final_score descending
+    scored.sort(key=lambda l: l["final_score"], reverse=True)
+    scored = scored[:limit]
+
+    if not scored:
+        console.print("[yellow]No leads passed the filter.[/yellow]")
+        raise typer.Exit(0)
+
+    # --json output
+    if emit_json:
+        import sys
+        sys.stdout.write(_json.dumps(scored, indent=2, ensure_ascii=False) + "\n")
+        raise typer.Exit(0)
+
+    # Human-readable table
+    tbl = Table(
+        title=f"Quick-Buck Shortlist ({len(scored)} leads, reputation-mode={'ON' if reputation_mode else 'OFF'})",
+        show_lines=False,
+    )
+    tbl.add_column("#", width=3, style="dim")
+    tbl.add_column("Title", max_width=38)
+    tbl.add_column("Source", width=12)
+    tbl.add_column("$", width=8)
+    tbl.add_column("~hrs", width=5)
+    tbl.add_column("$/hr", width=7)
+    tbl.add_column("Score", width=6)
+    tbl.add_column("Verdict", max_width=40)
+    tbl.add_column("URL", max_width=50, style="blue")
+
+    for i, lead in enumerate(scored, 1):
+        budget_str = f"${lead['budget_usd']:.0f}" if lead["budget_usd"] > 0 else "?"
+        margin_str = f"{lead['margin']:.0f}" if lead["margin"] > 0 else "?"
+        tbl.add_row(
+            str(i),
+            (lead.get("title") or "")[:38],
+            lead.get("source", ""),
+            budget_str,
+            f"{lead['effort_hours']:.0f}",
+            margin_str,
+            f"{lead['final_score']:.2f}",
+            lead.get("verdict", ""),
+            lead.get("url", "")[:50],
+        )
+
+    console.print(tbl)
+
+    # Generate draft proposals for top-K
+    if draft_top > 0 and scored:
+        top = scored[:draft_top]
+        console.print(f"\n[bold]Draft proposals for top {min(draft_top, len(top))} leads:[/bold]")
+        try:
+            cfg_path = config or "config/settings.toml"
+            from freelance_os.config import load_config, ConfigError
+            try:
+                cfg = load_config(cfg_path)
+            except ConfigError:
+                cfg = {"scoring": {"target_hourly_rate": 75, "minimum_project_value": 300},
+                       "paths": {"portfolio_file": "config/portfolio.yaml"}}
+
+            from freelance_os.models import Lead as LeadModel
+            from freelance_os.proposal.draft_generator import generate_draft
+
+            for i, lead in enumerate(top, 1):
+                stub = LeadModel(
+                    source=lead.get("source", "pull"),
+                    source_url=lead.get("url"),
+                    title=lead.get("title"),
+                    description=(lead.get("description") or "")[:4000],
+                )
+                draft = generate_draft(stub, cfg)
+                console.print(f"\n[bold cyan]--- Draft #{i}: {lead.get('title', '')[:60]} ---[/bold cyan]")
+                console.print(draft["draft_text"])
+        except Exception as exc:
+            console.print(f"[yellow]Draft generation skipped:[/yellow] {exc}")
+
+    # Optional SQLite persistence
+    if persist:
+        try:
+            cfg_path = config or "config/settings.toml"
+            from freelance_os.config import load_config, ConfigError
+            from freelance_os.db import get_engine, create_tables
+            from freelance_os.models import Lead as LeadModel
+            from sqlmodel import Session, select
+
+            try:
+                cfg = load_config(cfg_path)
+            except ConfigError:
+                cfg = {"paths": {"database_path": "data/freelance_os.sqlite"}}
+
+            db_path = cfg["paths"]["database_path"]
+            engine = get_engine(db_path)
+            create_tables(engine, db_path)
+
+            saved = 0
+            with Session(engine) as session:
+                for lead in scored:
+                    url = lead.get("url") or ""
+                    if url:
+                        existing = session.exec(
+                            select(LeadModel).where(LeadModel.source_url == url)
+                        ).first()
+                        if existing:
+                            continue
+                    stub = LeadModel(
+                        source=lead.get("source", "pull"),
+                        source_url=url or None,
+                        title=lead.get("title"),
+                        description=(lead.get("description") or "")[:4000],
+                        budget_min=lead.get("budget_usd") or None,
+                        notes=lead.get("verdict"),
+                    )
+                    session.add(stub)
+                    saved += 1
+                session.commit()
+            console.print(f"[green]Persisted {saved} new leads to {db_path}[/green]")
+        except Exception as exc:
+            console.print(f"[yellow]Persist skipped:[/yellow] {exc}")
