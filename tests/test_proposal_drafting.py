@@ -206,3 +206,12 @@ def test_generate_draft_no_a_authentication(portfolio_cfg):
     result = generate_draft(lead, portfolio_cfg)
     assert "a authentication" not in result["draft_text"]
     assert "a authorization" not in result["draft_text"]
+
+
+def test_surface_task_strips_verb_substring_and_prepositions():
+    """'Rebuild' must not match 'build', and preposition fragments fall back cleanly."""
+    from freelance_os.proposal.draft_generator import _infer_surface_task
+    # "Rebuild from manual ..." must not leak "from manual" (build inside Rebuild; 'from' fragment)
+    assert _infer_surface_task("Rebuild from manual CSV exports") == "implementation"
+    # A genuine verb + noun phrase still extracts cleanly.
+    assert _infer_surface_task("Build a REST API") == "rest api"
