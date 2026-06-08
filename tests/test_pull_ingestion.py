@@ -359,3 +359,74 @@ def test_sources_registry_has_expected_keys():
     assert "remoteok" in SOURCES
     assert "jobicy" in SOURCES
     assert "hn" in SOURCES
+
+
+# ---------------------------------------------------------------------------
+# FIX 2 — annual budget type detection
+# ---------------------------------------------------------------------------
+
+def test_parse_salary_annual_cue_year():
+    b = _parse_salary_string("$90k/year")
+    assert b["type"] == "annual"
+
+
+def test_parse_salary_annual_cue_salary_word():
+    b = _parse_salary_string("salary $80k-120k annually")
+    assert b["type"] == "annual"
+
+
+def test_parse_salary_fixed_cue_overrides_annual():
+    b = _parse_salary_string("fixed price project budget $20,000 one-time")
+    assert b["type"] == "fixed"
+
+
+def test_parse_salary_bare_amount_stays_fixed():
+    # No salary cue present — should remain "fixed", not tagged annual
+    b = _parse_salary_string("$20,000")
+    assert b["type"] == "fixed"
+
+
+def test_parse_salary_hourly_wins_over_annual():
+    b = _parse_salary_string("$50/hr salary range")
+    assert b["type"] == "hourly"
+
+
+def test_fetch_remoteok_salary_fields_tagged_annual():
+    payload = [
+        {"legal": "notice"},
+        {
+            "id": "99",
+            "url": "https://remoteok.com/remote-jobs/99",
+            "position": "Backend Engineer",
+            "description": "Build microservices.",
+            "salary_min": 90000,
+            "salary_max": 130000,
+            "tags": ["go"],
+            "date": "2024-04-01T00:00:00Z",
+        },
+    ]
+    with patch("freelance_os.ingestion.pull.urllib.request.urlopen",
+               return_value=_make_urlopen_mock(payload)):
+        leads = fetch_remoteok()
+    assert leads[0]["budget"]["type"] == "annual"
+
+
+def test_fetch_jobicy_salary_fields_tagged_annual():
+    payload = {
+        "jobs": [
+            {
+                "url": "https://jobicy.com/jobs/99",
+                "jobTitle": "Data Engineer",
+                "jobDescription": "Analyze data.",
+                "annualSalaryMin": 80000,
+                "annualSalaryMax": 100000,
+                "jobIndustry": ["data"],
+                "pubDate": "2024-04-01T00:00:00Z",
+                "jobGeo": "Remote",
+            }
+        ]
+    }
+    with patch("freelance_os.ingestion.pull.urllib.request.urlopen",
+               return_value=_make_urlopen_mock(payload)):
+        leads = fetch_jobicy()
+    assert leads[0]["budget"]["type"] == "annual"

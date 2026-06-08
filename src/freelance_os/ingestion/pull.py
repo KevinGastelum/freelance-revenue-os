@@ -70,9 +70,18 @@ def _parse_salary_string(salary: str) -> Dict[str, Any]:
     elif "AUD" in salary:
         currency = "AUD"
 
+    s_lower = salary.lower()
+    _HOURLY_CUES = ["/hr", "/hour", "hourly", "per hour", "/h"]
+    _ANNUAL_CUES = ["/year", "/yr", "year", "yr", "annual", "annually", "salary", "per annum"]
+    _FIXED_CUES = ["fixed price", "project budget", "one-time", "contract value"]
+
     budget_type = "fixed"
-    if any(x in salary.lower() for x in ["/hr", "/hour", "hourly", "per hour", "/h"]):
+    if any(x in s_lower for x in _HOURLY_CUES):
         budget_type = "hourly"
+    elif any(x in s_lower for x in _FIXED_CUES):
+        budget_type = "fixed"
+    elif any(x in s_lower for x in _ANNUAL_CUES):
+        budget_type = "annual"
 
     numbers = re.findall(r"[\d,]+(?:\.\d+)?[kK]?", salary)
     amounts = []
@@ -171,7 +180,7 @@ def fetch_remoteok() -> List[Dict[str, Any]]:
                 lead["budget"] = {
                     "amount": sum(vals) / len(vals),
                     "currency": "USD",
-                    "type": "fixed",
+                    "type": "annual",
                 }
             tags = job.get("tags", [])
             lead["skills"] = tags if isinstance(tags, list) else []
@@ -209,7 +218,7 @@ def fetch_jobicy() -> List[Dict[str, Any]]:
                 lead["budget"] = {
                     "amount": sum(vals) / len(vals),
                     "currency": "USD",
-                    "type": "fixed",
+                    "type": "annual",
                 }
             skills = job.get("jobIndustry", []) or job.get("tags", [])
             lead["skills"] = skills if isinstance(skills, list) else []
