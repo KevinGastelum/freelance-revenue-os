@@ -1,86 +1,63 @@
 # HANDOFF — freelance-os
-_Updated 2026-06-06. For the next human + Claude Code + Warren session. Run `/session-start-wr` to rehydrate._
+_Updated 2026-06-07 (session 4). For the next human + Claude Code + Warren session. Run `/session-start-wr` to rehydrate._
 
-## ⏰ NEXT SESSION — START HERE (set 2026-06-06)
-- **HARD DEADLINE (Kevin):** $100 real profit in his personal account by **2026-06-14** — the ROI checkpoint for renewing the Claude subscription. Top priority across all work; treat as global.
-- **Division of labor (the deal):** Kevin sources raw lead data by his own means; Claude builds everything downstream — margin scorer, ingest, drafts, orchestration. Claude does **not** build proxy / burner-account / anti-bot scraping. Memory: [[freelance-pivot-and-deadline]].
-- **BUILD TASK #1 — locked ("use pull"):** `freelance-os pull` — fetch from public APIs (Remotive, RemoteOK, Jobicy, Himalayas, WWR RSS, HN Algolia) → normalize to the lead schema → **AI-leverage margin score** = (budget ÷ est. effort-hours) × confidence → ranked "quick buck" shortlist. Then: schema ingest (CSV/JSON/inbox) + draft generation. No blockers (public APIs).
-- **Lead input schema:** required `source,url,title,description,budget{amount,currency,type}`; optional `skills,posted_at,client{country,rating,payment_verified,total_spend},location`.
-- **Human-only step for the $100:** Kevin sends + delivers the surfaced gig.
-- Repo restored from anger-deletes (tests/README/SAFETY_POLICY/justfile); only intentional edits remain (CLAUDE.md/PRD/ARCHITECTURE/warren-guard.js).
+## START HERE
+- **Status:** the revenue-pivot build pipeline is SHIPPED. `freelance-os pull` (PR #16) and
+  `freelance-os ingest` (PR #17) are both built, verified, and merged. `main` @ **57eea9e**, **431 tests green**.
+- **HARD DEADLINE (Kevin):** $100 real profit by **2026-06-14** (Claude subscription ROI). Revenue outranks polish.
+- **Single next action:** dispatch **BUILD #3 — scoring tuning** (spec below) via Warren — OR Kevin starts
+  feeding real gig leads to `freelance-os ingest <leads.csv>` (ranking is already sound enough to triage).
+- **Division of labor:** Kevin sources raw lead data; Claude builds downstream (scorer/ingest/drafts/
+  orchestration). No proxy/burner/anti-bot scraping. Memory: `freelance-pivot-and-deadline`.
 
-## 2026-06-06 (session 2) — IN PROGRESS, resumed after a bypass-mode restart
-**Permission friction FIXED durably:** `.claude/settings.local.json` now pins
-`permissions.defaultMode: "bypassPermissions"` (gitignored). Every session in this folder
-now starts with NO approval prompts, no `--dangerously-skip-permissions` flag needed, from
-any entry point. **Do NOT remove this** (explicit user directive). Mirror it into the
-os-warren scaffold's local-settings template so it's universal.
+## What shipped this session (2026-06-07)
+- **`freelance-os pull`** (PR #16 + UA fix `9b4a1f1`): public no-auth APIs (Remotive, RemoteOK, Jobicy, HN)
+  -> lead schema -> AI-leverage margin score (reputation-mode ON, no stack-match) -> ranked table / `--json`
+  -> top-K drafts -> optional `--persist`. All 4 sources live (Remotive+Jobicy were 403ing the bare urllib UA).
+- **`freelance-os ingest PATH`** (PR #17): operator CSV/JSON -> SAME margin schema -> SAME pipeline. The
+  score/rank/render logic now lives in `scoring/pipeline.py` (refactored out of `pull`; both call it, DRY).
+- New files: `ingestion/pull.py`, `scoring/margin.py`, `ingestion/ingest.py`, `scoring/pipeline.py`,
+  `tests/fixtures/sample_leads.csv`, `scripts/wr-refresh.sh`. All commits Kay / K-Bot-T1.
 
-**Done this session:** committed `justfile` (`d32f4f7`, uv/just recipes); discarded a stray
-working-tree edit that deleted `freelance-os init` from OPERATOR_MANUAL.md (it's a real
-command — `cli.py:43`, referenced at `cli.py:1203` + dashboard UI; deletion would ship wrong
-docs); deleted 17 remote + 1 local ephemeral `warren/run_*` junk branches (SHAs recorded in
-the session transcript — recover any via `git push origin <sha>:refs/heads/<name>`).
-Remaining non-run branches left in place: `warren-integration`, `mule-deer-ristra` (Warp worktree).
+## BUILD #3 — scoring tuning (the next build; via Warren)
+Live demos showed the output is not yet decision-useful on PUBLIC sources:
+1. **Margin saturation** — `score_lead` uses `norm_margin = min(1, margin / 200)`; every lead above $200/hr
+   maxes out, so a $90k and a $180k lead score identically (~0.80). Raise/curve the reference (or log-scale).
+2. **Salary vs project budget** — public boards return SALARIED roles; `$90,000/yr` is treated as a fixed gig
+   budget. Detect/flag annual comp; don't compute $/hr from a salary.
+3. **Effort heuristic too flat** — most descriptions resolve to 40h; add signal.
+4. **Draft grammar (#21)** — `draft_generator` emits "a authentication", "a in small task".
+- Sanity: `ingest` on REAL project budgets already ranks correctly (a $50 logo tweak lands last) — so this is
+  tuning, not a rebuild. Files: `scoring/margin.py`, `scoring/pipeline.py`, `proposal/draft_generator.py`.
 
-<!--
-**DECISION — PRD §2/§6 removal request: PARTIALLY DECLINED.** §2 (anti-bot evasion,
-fingerprint spoofing, residential proxies, CAPTCHA bypass, automated login/scraping,
-auto-submit proposals, auto-messaging, auto-payment) stays — that's ToS-circumvention /
-detection-evasion / mass-targeting and is a hard no, and it's the very ban-risk the PRD
-mission exists to avoid. §6's *non-safety* scope items (multi-user SaaS auth, complex CRM,
-dashboard-gating, "autonomy beyond local drafting") CAN be revisited now MVP is done. Legit
-path to "more hands-off" freelancing: official platform APIs where permitted + faster
-human-commit UX — NOT evasion. NOTE: this is separate from autonomous *build* orchestration
-(below), which is fully fine.
--->
-
-**PENDING — user's 2026-06-06 batch, not yet started:**
-1. **Autonomous build-orchestration plan** (important) — hands-off Warren build pipeline.
-2. **Durable tracking** — Warren tracks *runs* only, not backlog/milestones/PRD-checkoff.
-   Fill the gap with a lightweight CHECKED-IN doc (no new MCP/plugin — avoid headless-agent
-   overhead). Consolidate docs/BACKLOG.md + a PRD-phase checklist + blockers/decisions log.
-3. **GH collaboration/identity enforcement** — map + enforce who commits as what
-   (KevinGastelum=human, Kay/K-Bot-T1=agent, 0xkay=? NEED the identity→role mapping).
-4. **Global hook** — detect a concurrent CC session in the same project dir → launch the new
-   session in a fresh git worktree.
-5. **Mirror** all the above + bypass-mode default into the os-warren scaffold (universal).
-   Guiding rule the user set: for every add, ask "does Warren already handle this?" before
-   introducing skills/MCPs/plugins that add unwanted headless-agent overhead.
-
-## Status: COMPLETE on `main` (MVP + Command Center) — HEAD `0cc9b99`, pushed
-334 tests green; cross-platform (Windows utf-8) clean. Shipped: MVP phases 1-7 + Command Center CC-1..6 — job board, 22-platform source directory, email ingestion, feasibility/quick-wins, web dashboard (`freelance-os dashboard`), reputation dashboard, client-delivery scaffolds.
-
-## 2026-06-06 — Warren credential/rediscovery friction fixed permanently
-The recurring "WARREN_API_TOKEN is required" at session start is gone. `scripts/wr-env.sh`
-(sourced by all `wr-*.sh`) auto-loads the token AND exports `WARREN_PROJECT_ID`/`WARREN_BASE_URL`
-from `.warren/project.json` (the new single source of truth). `warren-guard.js` surfaces the
-project id/base url into context at SessionStart; `.claude/settings.local.json` (gitignored)
-pins them as env + allowlists read-only `wr`/git commands. Mirrored into the os-warren scaffold
-and the cross-project rule `~/.claude/rules/common/warren.md`. **Do NOT export the token by hand.**
-Public repo scanned secret-free (token: 0 hits in tree + full history). Activates fully on next
-Claude Code restart.
-
-## In-flight Warren runs: NONE (all dispatched runs verified + merged).
-
-## Next actions (pick one)
-- Polish backlog: tasks #21,#23,#24,#25,#33 (proposal grammar, client-name parse, datetime deprecation, scoring tuning, price-vs-budget).
-- Autonomous orchestration (task #19) for hands-off future builds.
-- Apply to the Freelancehunt Next.js+Supabase job with the drafted proposal.
-- Mirror work-env into the os-warren scaffold CLAUDE.warren-section (task #17, minor).
+## In-flight Warren runs: NONE (run_cx9j5xyq4xf7 -> PR#16 merged; run_zg4wczbz5ye7 -> PR#17 merged).
 
 ## Blockers / human-action items
-- Delete junk branch (agent blocked from remote-branch deletes w/o explicit OK): `git push origin --delete warren/run_x3tt8sds7mtn` (empty creds + sandbox junk; not merged).
-- Uncommitted, NOT authored by the creds work (appeared mid-session 2026-06-06): `justfile` (new; uv/just task recipes) + a one-line deletion in `docs/OPERATOR_MANUAL.md` (removed `freelance-os init`). Left untouched — review then commit or discard.
-- Restart Claude Code to activate `.claude/settings.local.json` env pins + the SessionStart hook facts injection.
-- Optional: close stale PRs #1,#2,#5 (probes) + superseded single-phase PRs.
+- **Kevin's 4 uncommitted edits** (untouched all session — his decision): `.claude/hooks/warren-guard.js`
+  (security hook; live-verified intact), `CLAUDE.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`. Commit or discard.
+- **Stale merged remote branches** (needs Kevin's OK): `git push origin --delete warren/run_cx9j5xyq4xf7
+  warren/run_zg4wczbz5ye7`.
+- Optional: scope the ECC fact-gate hook to code-only (it fired on every doc/scratch write again).
 
-## How to operate (recipes)
-- Build via Warren OFF MAIN -> verify locally (uv + pytest in a worktree; confirm NO sandbox-runtime junk in the diff) -> auto-merge to main (PUT /repos/.../pulls/N/merge). Refresh the clone (POST /projects/{id}/refresh) AFTER each merge, before the next dispatch.
-- Chaining is NOT possible (burrow clones the default branch) -> merge each phase before the next, or do one comprehensive dispatch.
-- Sandbox has NO pip -> uv. Dispatch prompts must: override the JS gate to `uv run pytest -q`; say "git add ONLY project files, never -A"; require cross-platform utf-8 + pathlib.
-- Warren agents share the user's Claude 5-hour rate limit -> pace; resume on refresh.
-- See CLAUDE.md (merge policy + work-env) and memory: warren-multiphase-build-limits, warren-oauth-creds-mount-fix.
+## Carried-over backlog (not addressed this session)
+- Autonomous build-orchestration plan (hands-off Warren pipeline) — task #19.
+- Durable tracking: a checked-in backlog/PRD-checkoff doc (no new MCP/plugin).
+- GH identity->role enforcement (KevinGastelum=human, Kay/K-Bot-T1=agent, 0xkay=? — need the mapping).
+- Global hook: detect a concurrent CC session in the same dir -> launch the new one in a fresh worktree.
+- Mirror session learnings + bypass-mode default into the os-warren scaffold.
+- Polish: #23 client-name parse, #24 datetime.utcnow() deprecation (the 406 test warnings), #25 price-vs-budget
+  (overlaps #3), #33 scoring tuning (= #3).
+
+## Recipes (Warren build loop — not already in CLAUDE.md)
+- **Refresh the clone before EVERY dispatch:** `bash scripts/wr-refresh.sh <project-id>` (new; the burrow
+  clones origin/main, so refresh after each push/merge).
+- **ASCII-only dispatch prompts** — non-ASCII mangles through MSYS2 `cat | jq` in wr-run.sh.
+- **Dispatch:** write the prompt to `.warren/tmp/<name>.md` (gitignored), then
+  `bash scripts/wr-run.sh claude-code <project-id> "$(cat .warren/tmp/<name>.md)"`.
+- **Verify+merge:** `git worktree add --detach <wt> origin/<branch>` -> `uv venv && uv pip install -e ".[dev]"
+  && uv run pytest -q` + live CLI check -> `git merge --no-ff -c user.name="Kay / K-Bot-T1"
+  -c user.email="k-bot-t1@freelance-revenue-os" origin/<branch>` -> `git push origin main` -> remove worktree.
+- Build env: sandbox has NO pip -> uv; override the JS gate to `uv run pytest -q`; cross-platform utf-8 + pathlib.
 
 ## Session lifecycle
-`/session-start-wr` (rehydrate) -> work -> `/session-close-wr` (handoff) -> `/clear`. The PostToolUse checkpoint hook nudges after a merge-to-main when the session is long.
+`/session-start-wr` (rehydrate) -> work -> `/session-close-wr` (this handoff) -> `/clear`.
