@@ -13,48 +13,63 @@
  *
  * Block protocol: exit code 2 + reason on stderr => Claude Code blocks the call.
  */
-'use strict';
+'use strict'
 
-let raw = '';
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', function (c) { raw += c; });
-process.stdin.on('error', function () { process.exit(0); });
+let raw = ''
+process.stdin.setEncoding('utf8')
+process.stdin.on('data', function (c) {
+  raw += c
+})
+process.stdin.on('error', function () {
+  process.exit(0)
+})
 process.stdin.on('end', function () {
-  try { main(raw); } catch (_) { process.exit(0); }
-});
+  try {
+    main(raw)
+  } catch (_) {
+    process.exit(0)
+  }
+})
 
 function main(input) {
-  let data;
-  try { data = JSON.parse(input || '{}'); } catch (_) { process.exit(0); return; }
+  let data
+  try {
+    data = JSON.parse(input || '{}')
+  } catch (_) {
+    process.exit(0)
+    return
+  }
 
-  const event = data.hook_event_name || data.hookEventName || '';
+  const event = data.hook_event_name || data.hookEventName || ''
 
   if (event === 'SessionStart') {
     process.stdout.write(
       '[Warren] This repo is Warren-aware. Health: scripts/wr-health.sh | ' +
-      'Projects: scripts/wr-projects.sh. Never print WARREN_API_TOKEN or .env ' +
-      'contents; never auto-merge Warren branches. See CLAUDE.md.\n' +
-      warrenFacts()
-    );
-    process.exit(0);
+        'Projects: scripts/wr-projects.sh. Never print WARREN_API_TOKEN or .env ' +
+        'contents; never auto-merge Warren branches. See CLAUDE.md.\n' +
+        warrenFacts(),
+    )
+    process.exit(0)
   }
 
-  if (event !== 'PreToolUse') process.exit(0);
+  if (event !== 'PreToolUse') process.exit(0)
 
-  const ti = data.tool_input || data.toolInput || {};
-  const cmd = (ti.command || '').toString();
-  if (!cmd) process.exit(0);
+  const ti = data.tool_input || data.toolInput || {}
+  const cmd = (ti.command || '').toString()
+  if (!cmd) process.exit(0)
 
-  const reason = firstViolation(cmd);
+  const reason = firstViolation(cmd)
   if (reason) {
     process.stderr.write(
-      'Blocked by Warren safety policy: ' + reason + '.\n' +
-      'If this is legitimate, run it yourself or adjust ' +
-      '.claude/hooks/warren-guard.js.\n'
-    );
-    process.exit(2);
+      'Blocked by Warren safety policy: ' +
+        reason +
+        '.\n' +
+        'If this is legitimate, run it yourself or adjust ' +
+        '.claude/hooks/warren-guard.js.\n',
+    )
+    process.exit(2)
   }
-  process.exit(0);
+  process.exit(0)
 }
 
 // Best-effort: surface discovered Warren constants so the agent never re-queries
@@ -62,53 +77,67 @@ function main(input) {
 // token. Any error => empty string (fail open, per the file contract).
 function warrenFacts() {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const f = path.join(process.cwd(), '.warren', 'project.json');
-    const j = JSON.parse(fs.readFileSync(f, 'utf8'));
-    const id = j.projectId || process.env.WARREN_PROJECT_ID || '?';
-    const url = j.baseUrl || process.env.WARREN_BASE_URL || 'http://localhost:8080';
-    const branch = j.defaultBranch || 'main';
+    const fs = require('fs')
+    const path = require('path')
+    const f = path.join(process.cwd(), '.warren', 'project.json')
+    const j = JSON.parse(fs.readFileSync(f, 'utf8'))
+    const id = j.projectId || process.env.WARREN_PROJECT_ID || '?'
+    const url =
+      j.baseUrl || process.env.WARREN_BASE_URL || 'http://localhost:8080'
+    const branch = j.defaultBranch || 'main'
     return (
-      '[Warren] Project: ' + id + ' @ ' + url + ' (default branch ' + branch + '). ' +
+      '[Warren] Project: ' +
+      id +
+      ' @ ' +
+      url +
+      ' (default branch ' +
+      branch +
+      '). ' +
       'Token auto-loads via scripts/wr-env.sh — do NOT export it by hand. ' +
       'Constants live in .warren/project.json; do not re-query the API for them.\n'
-    );
+    )
   } catch (_) {
-    return '';
+    return ''
   }
 }
 
 function firstViolation(cmd) {
   // Reference to the token var in bash ($TOK / ${TOK}) or PowerShell ($env:TOK).
-  const TOKEN = /\$\{?(?:env:)?WARREN_API_TOKEN/i;
+  const TOKEN = /\$\{?(?:env:)?WARREN_API_TOKEN/i
   // Shell verbs that write to stdout/a file.
-  const PRINT = /\b(echo|printf|write-output|write-host|out-host|out-default)\b/i;
+  const PRINT =
+    /\b(echo|printf|write-output|write-host|out-host|out-default)\b/i
 
   // 1. Printing the token.
   if (PRINT.test(cmd) && TOKEN.test(cmd))
-    return 'prints WARREN_API_TOKEN to output';
+    return 'prints WARREN_API_TOKEN to output'
   if (/\bprintenv\s+WARREN_API_TOKEN\b/i.test(cmd))
-    return 'prints WARREN_API_TOKEN via printenv';
+    return 'prints WARREN_API_TOKEN via printenv'
   if (/(^|[\n;&|])\s*\$env:WARREN_API_TOKEN\s*([\n;&|>]|$)/i.test(cmd))
-    return 'evaluates $env:WARREN_API_TOKEN as a bare command (would print it)';
+    return 'evaluates $env:WARREN_API_TOKEN as a bare command (would print it)'
 
   // 2. Dumping the whole environment (includes the token).
   if (/(^|[\n;|&])\s*(printenv|env)\s*(\||$)/i.test(cmd))
-    return 'dumps the full environment (includes WARREN_API_TOKEN)';
+    return 'dumps the full environment (includes WARREN_API_TOKEN)'
   if (/\b(get-childitem|gci|ls|dir|get-item)\s+env:(\\|\s|$|WARREN)/i.test(cmd))
-    return 'lists the PowerShell env: drive (includes WARREN_API_TOKEN)';
+    return 'lists the PowerShell env: drive (includes WARREN_API_TOKEN)'
 
   // 3. Reading a secret .env (but allow .env.example/.sample/.template).
-  if (/\b(cat|less|more|head|tail|nl|bat|strings|xxd|od|type|gc|get-content|get-item|gi)\b[^|&;\n]*\.env\b(?!\.(?:example|sample|template))/i.test(cmd))
-    return 'reads a secret .env file';
+  if (
+    /\b(cat|less|more|head|tail|nl|bat|strings|xxd|od|type|gc|get-content|get-item|gi)\b[^|&;\n]*\.env\b(?!\.(?:example|sample|template))/i.test(
+      cmd,
+    )
+  )
+    return 'reads a secret .env file'
 
   // 4. Deleting a Warren project (destructive; any argument order).
-  const isHttp = /\b(curl|wget|invoke-restmethod|invoke-webrequest|iwr|irm)\b/i.test(cmd);
-  const hitsProjects = /\/projects\//i.test(cmd);
-  const isDelete = /(-x\s*delete|-method\s+delete|(^|\s)delete\s+https?:)/i.test(cmd);
+  const isHttp =
+    /\b(curl|wget|invoke-restmethod|invoke-webrequest|iwr|irm)\b/i.test(cmd)
+  const hitsProjects = /\/projects\//i.test(cmd)
+  const isDelete =
+    /(-x\s*delete|-method\s+delete|(^|\s)delete\s+https?:)/i.test(cmd)
   if (isHttp && hitsProjects && isDelete)
-    return 'deletes a Warren project (destructive)';
+    return 'deletes a Warren project (destructive)'
 
-  return null;
+  return null
 }

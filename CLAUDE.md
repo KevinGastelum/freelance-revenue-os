@@ -1,35 +1,31 @@
 # CLAUDE.md
 
-Guidance for Claude Code (and other agents) working in **freelance-revenue-os**.
+## Objectives & Goals (set 2026-06-06)
 
-## Project
+**Mission:** turn `freelance-os` into an AI-leveraged revenue engine — surface high-margin,
+easy-to-deliver gigs and draft winning applications so the operator lands paid work fast.
 
-A local-first, human-in-the-loop freelance operating system. CLI/package name:
-`freelance-os` (canonical repo: `freelance-revenue-os`). Full spec: **docs/PRD.md**.
-The MVP (PRD phases 1-7) is built and on `main`.
+**Immediate goal:** $100 real profit (operator's personal account) by **2026-06-14** — the
+ROI checkpoint for the Claude subscription. Revenue-producing work outranks polish/infra until then.
 
-Core philosophy — **"AI prepares. Human commits."** The AI ingests permitted
-signals, scores leads, drafts proposals, prepares workspaces, runs QA, and
-packages deliverables. **The human performs every *platform* write action manually.**
-(This is about freelance-platform actions — see the hard safety rules — NOT about
-git: see the merge policy below.)
+**Scoring — margin, not stack:** rank leads by **AI-leverage margin** =
+(budget ÷ estimated effort-hours) × confidence. Any stack is in scope; breadth (the AI) is the
+edge, so an obscure-but-bounded task is a *feature*, not a disqualifier. Never weight by
+human-stack match.
 
-### Hard safety rules (from docs/PRD.md section 2 — non-negotiable)
+**Reputation mode:** while the account has few/no reviews, accept and surface **low-dollar gigs**
+that buy reviews, ratings, and good feedback — reputation compounds and unlocks bigger work.
+Score reputation-building value alongside compensation; don't reject a gig for being cheap if
+it's an easy win that builds standing.
 
-Never build, add, or dispatch work that introduces:
+**Division of labor:** the operator sources raw lead data by his own means; Claude builds
+everything downstream — ingestion (against the lead schema), the margin scorer, draft generation,
+and orchestration — pulling from legitimate public APIs/RSS + the operator's own alert inbox.
+See memory `freelance-pivot-and-deadline`.
 
-- stealth browser automation, fingerprint spoofing, or anti-bot evasion
-- residential proxy rotation or CAPTCHA solving/bypassing
-- automated login, authenticated scraping, or auto-submit of proposals
-- automated platform messaging, order delivery, or payment/milestone actions
-
-Generated platform text (proposals, messages, delivery notes) is **draft-only**;
-the human copies, edits, and sends it manually.
-
-## Stack
-
-Python · Typer CLI · SQLite + SQLModel · TOML/YAML config · Markdown-first
-outputs · optional Textual TUI / FastAPI later.
+**Build roadmap:** (1) `freelance-os pull` (public APIs → schema → margin score → ranked
+shortlist; spec: `docs/pull-build-spec.md`), (2) schema ingest (CSV/JSON/inbox), (3) per-lead
+draft generation, (4) orchestration.
 
 ## Work environment (cross-platform — IMPORTANT)
 

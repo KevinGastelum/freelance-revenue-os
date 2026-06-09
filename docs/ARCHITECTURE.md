@@ -51,7 +51,6 @@ Key fields: status, lead_score, risk_score, decision, reason_codes.
 
 ### ProposalDraft
 Generated proposal text. Linked to Lead. Validated before use.
-<!-- Always draft-only — human submits manually. -->
 
 ### PortfolioItem
 Loaded from YAML (not stored in DB). Used for proposal matching and claim validation.
@@ -62,17 +61,6 @@ Created when a Lead is WON. Points to workspace directory.
 ### Outcome
 Records the result of a won/lost opportunity for learning loop.
 
-<!--
-## Safety Architecture
-
-Config loader enforces safety at startup:
-- Reads `config/settings.toml`
-- Raises `ConfigError` if any prohibited flag is `true`
-- Defaults are all safe (automation flags = false)
-
-No network calls are made to freelance platforms.
-No browser automation exists in the codebase.
--->
 
 ## File Encoding
 

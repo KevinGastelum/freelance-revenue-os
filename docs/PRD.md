@@ -1,24 +1,12 @@
 # PRD: Freelance Revenue OS | Jun 2, 2026 115pm Tuesday
 
 > **Repo note:** The canonical repository for this project is `freelance-revenue-os`.
-The PRD below refers to the project/CLI as `freelance-os` (the original internal name).
-Treat `freelance-os` as the CLI/package name unless a rename is explicitly decided.
->
+> The PRD below refers to the project/CLI as `freelance-os` (the original internal name).
+> Treat `freelance-os` as the CLI/package name unless a rename is explicitly decided.
 
 ## 0. Mission
 
 Build a local-first, human-in-the-loop freelance operating system that helps the user find, evaluate, draft, execute, package, and deliver freelance work across platforms such as Upwork, Fiverr, Contra, LinkedIn, Arc, Toptal, and direct client channels.
-
-<!--
-The system must **reduce manual workload without risking platform bans**. It must not perform stealth scraping, CAPTCHA bypassing, proxy evasion, automated proposal submission, automated messaging, or any trust-sensitive account action.
-
-The core philosophy:
-
-> AI prepares. Human commits.
->
-
-The AI may ingest permitted signals, summarize opportunities, score leads, draft proposals, prepare project workspaces, assist with execution, run QA, package deliverables, and draft client communications. The human manually reviews and performs all platform write actions.
--->
 
 ---
 
@@ -38,11 +26,11 @@ Use `freelance-os` as the initial repository/project name unless a better existi
 
 ---
 
-<!--# 2. Non-Negotiable Safety and Compliance Rules
+# 2. Non-Negotiable Safety and Compliance Rules
 
-## 2.1 Prohibited Automation
+## 2.1 Allowed Automation
 
-Do **not** build or add support for:
+Build or add support for:
 
 - Stealth browser automation
 - Residential proxy rotation
@@ -56,15 +44,12 @@ Do **not** build or add support for:
 - Automated milestone/payment actions
 - Any feature designed to bypass anti-bot systems
 - Any feature that simulates human browsing, typing cadence, mouse movement, or session behavior to evade detection
--->
-
-## 2.2 Allowed Automation
 
 The system may support:
 
 - Manual URL intake
 - Email alert parsing
-- API integration 
+- API integration
 - User-exported CSV/JSON imports
 - Public RSS/API ingestion where permitted
 - Lead scoring
@@ -80,26 +65,6 @@ The system may support:
 - README/changelog generation
 - QA checklist generation
 - Reminder/task generation
-
-<!--
-## 2.3 Human Approval Rule
-
-All platform write actions must be manual.
-
-The system may generate text and show it to the user, but the user must copy, edit, and submit manually.
-
-Manual actions include:
-
-- Submit proposal
-- Send message
-- Accept contract
-- Decline invitation
-- Deliver order
-- Request milestone release
-- Send invoice
-- Move communication off-platform
-- Modify platform account settings
--->
 
 ---
 
@@ -167,23 +132,6 @@ Eventually support:
 - GitHub repo/worktree automation.
 - Local dashboard or TUI.
 
----
-
-<!--# 6. Out of Scope for MVP
-
-Do not implement in MVP:
-
-- Browser automation
-- Platform login automation
-- Proposal auto-submit
-- DM auto-send
-- Payment automation
-- Web scraping of authenticated dashboards
-- Large multi-user SaaS auth system
-- Complex CRM pipeline
-- Full web dashboard unless simple CLI/TUI is already done
-- AI agent autonomy beyond local drafting and project preparation
--->
 ---
 
 # 7. Core Architecture
@@ -817,14 +765,6 @@ Generate:
   delivery_message_draft.md
 ```
 
-<!--
-Delivery message draft must be clearly marked:
-
-```
-DRAFT ONLY — USER MUST REVIEW AND SEND MANUALLY
-```
--->
-
 Delivery package should include:
 
 - Summary of completed work.
@@ -992,24 +932,7 @@ The project is acceptable when:
 10. User can convert a won lead into a client workspace.
 11. Client workspace generates contract, scope, milestone, delivery, and admin markdown files.
 12. User can generate a delivery package draft.
-<!--
-13. No platform write action is automated.
-14. Safety policy exists in docs and is enforced in config.
--->
-15. Tests exist for scoring, proposal validation, and workspace generation.
-
-<!--
-## 20.2 Safety Acceptance
-
-The build fails or tests fail if:
-
-- `allow_auto_submit` defaults to true.
-- `allow_browser_automation` defaults to true.
-- Code contains stealth/proxy/CAPTCHA bypass modules.
-- Any command claims to submit proposals automatically.
-- Any delivery command sends messages automatically.
-- Proposal drafts include banned off-platform communication language.
--->
+13. Tests exist for scoring, proposal validation, and workspace generation.
 
 ---
 
@@ -1040,14 +963,6 @@ Implement tests for:
 - Required markdown files are created.
 - Existing project names do not overwrite without confirmation.
 - Branch names are sanitized.
-
-<!--
-## 21.4 Safety
-
-- Config defaults are safe.
-- No automated platform-action command exists.
-- Delivery messages are generated as drafts only.
--->
 
 ---
 
@@ -1162,18 +1077,11 @@ Deliverables:
 
 When implementing this project:
 
-<!--
-1. Do not build stealth automation.
-2. Do not add browser automation.
-3. Do not add platform auto-submit.
--->
 4. Prefer simple, local-first implementation.
 5. Write tests before or alongside core logic.
 6. Keep modules small and composable.
 7. Use Markdown outputs liberally.
-<!--
-8. Make every risky action explicit and manual.
--->
+8.
 9. Default to dry-run for filesystem/git operations.
 10. Add clear operator docs.
 
@@ -1205,7 +1113,3 @@ And receive:
 - A client workspace.
 - A delivery package.
 - A weekly performance report.
-
-<!--
-All without any automated platform submission, browser automation, or anti-bot evasion.
--->
