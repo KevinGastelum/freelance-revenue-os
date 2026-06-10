@@ -130,6 +130,36 @@ bash scripts/wr-dispatch-current-repo.sh <project-id> "Prompt"
 - Anything touching secrets or `.env`.
 - Work needing tight human back-and-forth every few minutes — do that locally.
 
+## Required checks before a Warren dispatch
+
+1. Read `CLAUDE.md` and docs/PRD.md.
+2. `bash scripts/wr-health.sh`
+3. `bash scripts/wr-projects.sh`
+4. Confirm the correct project id.
+5. Check for `.seeds/`, `.mulch/`, `.plot/`, `.canopy/`. If `.seeds/` appears,
+   prefer existing ready seeds; if `.plot/` appears, bind to a Plot; if `.mulch/`
+   appears, prime/search memory first.
+
+## Dispatch prompt requirements
+
+Every dispatch prompt must include: objective · relevant files/dirs · constraints
+· explicit non-goals · validation/test command · branch/PR expectation
+(auto-merge to `main` only via the verifier-gated, path-guarded policy in
+`CLAUDE.md`) · "do not expose secrets/.env" · "keep changes minimal and
+reviewable". For Python builds also require: **use uv (no pip in the sandbox);
+override the default JS gate to `uv run pytest -q`; write cross-platform code
+(utf-8 + pathlib + guard POSIX features); commit after each phase.**
+
+## Multi-phase work (chaining limits)
+
+Every Warren dispatch's burrow clones the project's **default branch (`main`)** —
+`ref`/`continueFromRunId` do NOT repoint the workspace in this build. So you
+**cannot stack unmerged phase branches**. Build multi-phase work either as (a) one
+comprehensive dispatch with per-phase commits, or (b) phase-by-phase dispatches
+where each is **auto-merged to `main` (on green verifier) before the next is
+dispatched** — refresh the project clone (`POST /projects/{id}/refresh`) after each
+merge so the next dispatch sees it.
+
 ## Plan-Runs with Seeds (optional)
 
 Seeds (`sd`) is **not installed** on this machine yet. If you add it, turn large
@@ -158,7 +188,8 @@ explicit human approval.**
 - Never paste `.env` contents into a prompt or the terminal.
 - Never ask a Warren agent to exfiltrate secrets.
 - Never dispatch destructive operations without explicit human approval.
-- Never auto-merge a Warren branch — always review first.
+- Auto-merge a Warren branch only via the verifier-gated, path-guarded merge
+  policy in `CLAUDE.md`; otherwise review first.
 <!-- - Honor docs/PRD.md section 2: **no** automated platform actions (no auto-submit,
   auto-message, scraping, browser/anti-bot automation) may be introduced. -->
 - A local Claude Code guard (`.claude/hooks/warren-guard.js`) blocks the most

@@ -10,6 +10,11 @@ defaultRole: claude-code
 defaultBranch: main
 runBranchPrefix: warren
 
+# Injected into every sandbox as $WARREN_QUALITY_GATE.
+# Python project; the sandbox has no pip, so the gate runs through uv.
+# Workers must exit it green before committing.
+qualityGate: "uv run pytest -q"
+
 # Optional provider/model defaults.
 # Left commented so the owner sets hard defaults intentionally.
 # defaultProvider: anthropic

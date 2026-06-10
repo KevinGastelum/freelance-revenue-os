@@ -44,7 +44,11 @@ Thumbs.db
 .warren/tmp/
 
 # Claude Code — personal/local overrides (shared .claude/settings.json stays tracked)
+# Steering-side material stays local-only so headless Warren sandboxes
+# (which clone this repo) never auto-load it.
 .claude/settings.local.json
+.claude/skills/
+.claude/hooks/suggest-handoff.js
 
 # Python project
 data/*.sqlite

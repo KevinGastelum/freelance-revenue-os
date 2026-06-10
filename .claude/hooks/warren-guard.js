@@ -102,25 +102,54 @@ function warrenFacts() {
 }
 
 function firstViolation(cmd) {
-  // Reference to the token var in bash ($TOK / ${TOK}) or PowerShell ($env:TOK).
-  const TOKEN = /\$\{?(?:env:)?WARREN_API_TOKEN/i
+  // Fast path: if none of the watched substrings appear, no rule below can
+  // match — skip all regex work. 'env' covers printenv/env dumps/$env:/.env.
+  const lower = cmd.toLowerCase()
+  const WATCHED = [
+    'env',
+    'warren_api_token',
+    'anthropic_api_key',
+    'github_token',
+    '/projects/',
+  ]
+  if (
+    !WATCHED.some(function (s) {
+      return lower.indexOf(s) !== -1
+    })
+  )
+    return null
+
+  // Reference to a secret var in bash ($TOK / ${TOK}) or PowerShell ($env:TOK).
+  const TOKEN = /\$\{?(?:env:)?(WARREN_API_TOKEN|ANTHROPIC_API_KEY|GITHUB_TOKEN)/i
   // Shell verbs that write to stdout/a file.
   const PRINT =
     /\b(echo|printf|write-output|write-host|out-host|out-default)\b/i
 
-  // 1. Printing the token.
+  // 1. Printing a secret.
   if (PRINT.test(cmd) && TOKEN.test(cmd))
-    return 'prints WARREN_API_TOKEN to output'
-  if (/\bprintenv\s+WARREN_API_TOKEN\b/i.test(cmd))
-    return 'prints WARREN_API_TOKEN via printenv'
-  if (/(^|[\n;&|])\s*\$env:WARREN_API_TOKEN\s*([\n;&|>]|$)/i.test(cmd))
-    return 'evaluates $env:WARREN_API_TOKEN as a bare command (would print it)'
+    return 'prints a secret (WARREN_API_TOKEN/ANTHROPIC_API_KEY/GITHUB_TOKEN) to output'
+  if (
+    /\bprintenv\s+(WARREN_API_TOKEN|ANTHROPIC_API_KEY|GITHUB_TOKEN)\b/i.test(
+      cmd,
+    )
+  )
+    return 'prints a secret via printenv'
+  if (
+    /(^|[\n;&|])\s*\$env:(WARREN_API_TOKEN|ANTHROPIC_API_KEY|GITHUB_TOKEN)\s*([\n;&|>]|$)/i.test(
+      cmd,
+    )
+  )
+    return 'evaluates a secret env var as a bare command (would print it)'
 
-  // 2. Dumping the whole environment (includes the token).
+  // 2. Dumping the whole environment (includes the secrets).
   if (/(^|[\n;|&])\s*(printenv|env)\s*(\||$)/i.test(cmd))
-    return 'dumps the full environment (includes WARREN_API_TOKEN)'
-  if (/\b(get-childitem|gci|ls|dir|get-item)\s+env:(\\|\s|$|WARREN)/i.test(cmd))
-    return 'lists the PowerShell env: drive (includes WARREN_API_TOKEN)'
+    return 'dumps the full environment (includes secret tokens)'
+  if (
+    /\b(get-childitem|gci|ls|dir|get-item)\s+env:(\\|\s|$|WARREN|ANTHROPIC|GITHUB)/i.test(
+      cmd,
+    )
+  )
+    return 'lists the PowerShell env: drive (includes secret tokens)'
 
   // 3. Reading a secret .env (but allow .env.example/.sample/.template).
   if (
