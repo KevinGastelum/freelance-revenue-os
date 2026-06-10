@@ -115,6 +115,12 @@ def _parse_iso(date_str: Optional[str]) -> Optional[str]:
 # Remotive
 # ---------------------------------------------------------------------------
 
+_REMOTIVE_EMPLOYMENT_KEYWORDS = [
+    "engineer", "developer", "designer", "manager", "director",
+    "head of", "lead ", "analyst", "scientist", "architect",
+]
+
+
 def fetch_remotive() -> List[Dict[str, Any]]:
     """Fetch jobs from the Remotive public API."""
     try:
@@ -124,13 +130,20 @@ def fetch_remotive() -> List[Dict[str, Any]]:
         for job in jobs:
             if not isinstance(job, dict):
                 continue
+            title = job.get("title", "") or ""
             lead = _empty_lead(
                 source="remotive",
                 url=job.get("url", ""),
-                title=job.get("title", ""),
+                title=title,
                 description=job.get("description", "") or "",
             )
-            lead["budget"] = _parse_salary_string(job.get("salary", "") or "")
+            budget = _parse_salary_string(job.get("salary", "") or "")
+            amount = budget.get("amount")
+            if amount is not None and amount >= 20000:
+                title_lower = title.lower()
+                if budget["type"] == "fixed" or any(kw in title_lower for kw in _REMOTIVE_EMPLOYMENT_KEYWORDS):
+                    budget["type"] = "annual"
+            lead["budget"] = budget
             lead["skills"] = job.get("tags", []) or []
             lead["posted_at"] = _parse_iso(job.get("publication_date"))
             lead["location"] = job.get("candidate_required_location", "") or ""
@@ -298,6 +311,64 @@ def fetch_hn_freelancer() -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Reddit r/forhire
+# ---------------------------------------------------------------------------
+
+_REDDIT_FORHIRE_UA = "freelance-revenue-os/0.1 (+github.com/freelance-revenue-os)"
+
+
+def fetch_reddit_forhire() -> List[Dict[str, Any]]:
+    """Fetch 'Hiring' posts from Reddit r/forhire JSON API."""
+    import re
+    try:
+        data = _fetch_json(
+            "https://www.reddit.com/r/forhire/new.json?limit=100",
+            headers={"User-Agent": _REDDIT_FORHIRE_UA},
+        )
+        children = data.get("data", {}).get("children", []) if isinstance(data, dict) else []
+        results = []
+        for child in children:
+            if not isinstance(child, dict):
+                continue
+            post = child.get("data", {}) or {}
+            flair = post.get("link_flair_text") or ""
+            if flair.lower() != "hiring":
+                continue
+            title = post.get("title", "") or ""
+            title = re.sub(r"^\[Hiring\]\s*", "", title, flags=re.IGNORECASE).strip()
+            description = post.get("selftext", "") or ""
+            permalink = post.get("permalink", "") or ""
+            url = "https://reddit.com" + permalink
+            created_utc = post.get("created_utc")
+            posted_at = None
+            if created_utc is not None:
+                try:
+                    posted_at = datetime.utcfromtimestamp(float(created_utc)).isoformat()
+                except (ValueError, TypeError, OSError):
+                    pass
+            salary_match = re.search(
+                r"\$\d[\d,]*(?:[kK])?(?:\s*[-–]\s*\$?\d[\d,]*(?:[kK])?)?(?:\s*/\s*(?:hr|hour|yr|year))?",
+                title + " " + description,
+            )
+            budget = {"amount": None, "currency": "USD", "type": "unknown"}
+            if salary_match:
+                budget = _parse_salary_string(salary_match.group(0))
+            lead = _empty_lead(
+                source="reddit_forhire",
+                url=url,
+                title=title,
+                description=description,
+            )
+            lead["budget"] = budget
+            lead["posted_at"] = posted_at
+            results.append(lead)
+        return results
+    except Exception as exc:
+        logger.warning("reddit_forhire fetch failed: %s", exc)
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Dedupe + dispatch
 # ---------------------------------------------------------------------------
 
@@ -320,6 +391,7 @@ SOURCES: Dict[str, Any] = {
     "remoteok": fetch_remoteok,
     "jobicy": fetch_jobicy,
     "hn": fetch_hn_freelancer,
+    "reddit_forhire": fetch_reddit_forhire,
 }
 
 
