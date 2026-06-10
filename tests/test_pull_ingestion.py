@@ -18,6 +18,7 @@ from freelance_os.ingestion.pull import (
     fetch_remoteok,
     fetch_jobicy,
     fetch_hn_freelancer,
+    fetch_reddit_forhire,
     SOURCES,
 )
 
@@ -151,7 +152,7 @@ def test_fetch_remotive_normalises_jobs():
     assert lead["source"] == "remotive"
     assert "python" in lead["skills"]
     assert lead["budget"]["amount"] == pytest.approx(100000.0, rel=0.01)
-    assert lead["budget"]["type"] == "fixed"
+    assert lead["budget"]["type"] == "annual"
     assert lead["posted_at"] is not None
 
 
@@ -429,4 +430,84 @@ def test_fetch_jobicy_salary_fields_tagged_annual():
     with patch("freelance_os.ingestion.pull.urllib.request.urlopen",
                return_value=_make_urlopen_mock(payload)):
         leads = fetch_jobicy()
+    assert leads[0]["budget"]["type"] == "annual"
+
+
+# ---------------------------------------------------------------------------
+# fetch_reddit_forhire
+# ---------------------------------------------------------------------------
+
+def _make_reddit_payload(posts):
+    """Wrap a list of post-data dicts into the Reddit JSON envelope."""
+    return {
+        "data": {
+            "children": [{"kind": "t3", "data": p} for p in posts]
+        }
+    }
+
+
+def test_fetch_reddit_forhire_filters_hiring_only():
+    posts = [
+        {
+            "title": "[Hiring] Python developer for automation project",
+            "selftext": "Looking for $50-100/hr contractor.",
+            "link_flair_text": "Hiring",
+            "permalink": "/r/forhire/comments/abc1/",
+            "created_utc": 1717000000.0,
+        },
+        {
+            "title": "For Hire | React developer available",
+            "selftext": "I am available for freelance work.",
+            "link_flair_text": "For Hire",
+            "permalink": "/r/forhire/comments/abc2/",
+            "created_utc": 1717000001.0,
+        },
+        {
+            "title": "Need a designer",
+            "selftext": "Budget $500.",
+            "link_flair_text": None,
+            "permalink": "/r/forhire/comments/abc3/",
+            "created_utc": 1717000002.0,
+        },
+    ]
+    payload = _make_reddit_payload(posts)
+    with patch("freelance_os.ingestion.pull.urllib.request.urlopen",
+               return_value=_make_urlopen_mock(payload)):
+        leads = fetch_reddit_forhire()
+    assert len(leads) == 1
+    assert leads[0]["source"] == "reddit_forhire"
+    assert "reddit.com" in leads[0]["url"]
+
+
+def test_fetch_reddit_forhire_network_error():
+    import urllib.error
+    with patch("freelance_os.ingestion.pull.urllib.request.urlopen",
+               side_effect=urllib.error.URLError("connection refused")):
+        leads = fetch_reddit_forhire()
+    assert leads == []
+
+
+def test_reddit_forhire_in_sources():
+    assert "reddit_forhire" in SOURCES
+
+
+def test_remotive_annual_salary_tagged():
+    payload = {
+        "jobs": [
+            {
+                "url": "https://remotive.com/job/99",
+                "title": "Staff Software Engineer",
+                "description": "Build distributed systems.",
+                "salary": "$90,000-$120,000",
+                "tags": ["python"],
+                "publication_date": "2024-05-01T00:00:00Z",
+                "candidate_required_location": "Worldwide",
+            }
+        ]
+    }
+    from unittest.mock import patch as _patch
+    from freelance_os.ingestion import pull as _pull_mod
+    with _patch.object(_pull_mod, "_fetch_json", return_value=payload):
+        leads = fetch_remotive()
+    assert len(leads) == 1
     assert leads[0]["budget"]["type"] == "annual"
